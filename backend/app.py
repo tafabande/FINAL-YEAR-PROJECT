@@ -13,6 +13,11 @@ def require_api_key():
     if request.path.startswith('/api/') and request.path not in ['/api/telemetry', '/api/auth']:
         if request.method == 'OPTIONS':
             return Response(status=200)
+            
+        # Allow GET requests for basic telemetry/config info to guests
+        if request.method == 'GET' and request.path in ['/api/nodes', '/api/tags', '/api/settings', '/api/users']:
+            return
+
         token = request.headers.get('X-API-Key')
         if not token:
             return jsonify({"error": "Unauthorized"}), 401
@@ -41,8 +46,53 @@ def check_auth():
     if user:
         import base64
         token = base64.b64encode(f"{username}:{password}".encode('utf-8')).decode('utf-8')
-        return jsonify({"status": "ok", "token": token, "role": user['role']}), 200
-    return jsonify({"error": "Unauthorized: Access Denied"}), 401
+        return jsonify({"status": "ok", "token": token, "role": user['role'], "username": username}), 200
+    return jsonify({"error": "Unauthorized: Invalid username or password"}), 401
+
+@app.route('/api/users', methods=['GET', 'POST'])
+def manage_users():
+    conn = models.get_db()
+    if request.method == 'POST':
+        data = request.json
+        username = data.get('username', '').strip()
+        password = data.get('password', '').strip()
+        role = data.get('role', 'ordinary')
+        if not username or not password:
+            return jsonify({"error": "Username and password are required"}), 400
+        if role not in ['admin', 'ordinary']:
+            return jsonify({"error": "Role must be 'admin' or 'ordinary'"}), 400
+        existing = conn.execute("SELECT id FROM users WHERE username=?", (username,)).fetchone()
+        if existing:
+            return jsonify({"error": f"User '{username}' already exists"}), 409
+        conn.execute("INSERT INTO users (username, password, role) VALUES (?, ?, ?)", (username, password, role))
+        conn.commit()
+        return jsonify({"status": "ok", "message": f"User '{username}' created"}), 201
+    else:
+        users = conn.execute('SELECT id, username, role FROM users').fetchall()
+        return jsonify([dict(u) for u in users])
+
+@app.route('/api/users/<int:user_id>', methods=['DELETE'])
+def delete_user(user_id):
+    conn = models.get_db()
+    # Decode the current user from the API key header to prevent self-deletion
+    token = request.headers.get('X-API-Key')
+    current_username = None
+    if token:
+        try:
+            import base64
+            decoded = base64.b64decode(token).decode('utf-8')
+            current_username = decoded.split(':', 1)[0]
+        except Exception:
+            pass
+
+    user = conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    if user['username'] == current_username:
+        return jsonify({"error": "Cannot delete your own account"}), 403
+    conn.execute("DELETE FROM users WHERE id=?", (user_id,))
+    conn.commit()
+    return jsonify({"status": "ok", "message": f"User '{user['username']}' deleted"}), 200
 
 @app.route('/api/settings', methods=['GET', 'POST'])
 def manage_settings():
@@ -67,16 +117,18 @@ def manage_nodes():
         mode = data.get('mode', 'esp32')
         role = data.get('role', 'anchor')
         mobility = data.get('mobility', 'fixed')
+        category = data.get('category', 'Head Office')
+        type_ = data.get('type', '')
         x = data.get('x', 0.0)
         y = data.get('y', 0.0)
         
         node = conn.execute('SELECT * FROM nodes WHERE mac = ?', (mac,)).fetchone()
         if node:
-            conn.execute('UPDATE nodes SET name=?, mode=?, role=?, mobility=?, x=?, y=? WHERE mac=?', 
-                         (name, mode, role, mobility, x, y, mac))
+            conn.execute('UPDATE nodes SET name=?, mode=?, role=?, mobility=?, category=?, type=?, x=?, y=? WHERE mac=?', 
+                         (name, mode, role, mobility, category, type_, x, y, mac))
         else:
-            conn.execute('INSERT INTO nodes (mac, name, mode, role, mobility, x, y) VALUES (?, ?, ?, ?, ?, ?, ?)', 
-                         (mac, name, mode, role, mobility, x, y))
+            conn.execute('INSERT INTO nodes (mac, name, mode, role, mobility, category, type, x, y) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', 
+                         (mac, name, mode, role, mobility, category, type_, x, y))
         conn.commit()
         return jsonify({"status": "ok"}), 201
     else:
@@ -101,15 +153,16 @@ def manage_tags():
         name = data.get('name', 'Unknown Tag')
         machine = data.get('machine', '')
         category = data.get('category', 'Asset')
+        type_ = data.get('type', '')
         interval = data.get('interval', 500)
         
         tag = conn.execute('SELECT * FROM tags WHERE mac = ?', (mac,)).fetchone()
         if tag:
-            conn.execute('UPDATE tags SET name=?, machine=?, category=?, interval=? WHERE mac=?', 
-                         (name, machine, category, interval, mac))
+            conn.execute('UPDATE tags SET name=?, machine=?, category=?, type=?, interval=? WHERE mac=?', 
+                         (name, machine, category, type_, interval, mac))
         else:
-            conn.execute('INSERT INTO tags (mac, name, machine, category, interval) VALUES (?, ?, ?, ?, ?)', 
-                         (mac, name, machine, category, interval))
+            conn.execute('INSERT INTO tags (mac, name, machine, category, type, interval) VALUES (?, ?, ?, ?, ?, ?)', 
+                         (mac, name, machine, category, type_, interval))
         conn.commit()
         return jsonify({"status": "ok"}), 201
     else:

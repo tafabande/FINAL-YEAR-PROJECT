@@ -36,6 +36,14 @@ def init_db():
         cursor.execute("INSERT OR IGNORE INTO users (username, password, role) VALUES ('admin', 'admin0', 'admin')")
         cursor.execute("INSERT OR IGNORE INTO users (username, password, role) VALUES ('ordinary', 'ordinary', 'ordinary')")
 
+        # Migration for existing DB
+        try: cursor.execute("ALTER TABLE nodes ADD COLUMN category TEXT DEFAULT 'Head Office'")
+        except: pass
+        try: cursor.execute("ALTER TABLE nodes ADD COLUMN type TEXT DEFAULT ''")
+        except: pass
+        try: cursor.execute("ALTER TABLE tags ADD COLUMN type TEXT DEFAULT ''")
+        except: pass
+
         
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS tags (
@@ -44,6 +52,7 @@ def init_db():
                 name TEXT,
                 machine TEXT DEFAULT '',
                 category TEXT DEFAULT 'Asset',
+                type TEXT DEFAULT '',
                 interval INTEGER DEFAULT 500,
                 status TEXT DEFAULT 'online',
                 last_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -61,6 +70,8 @@ def init_db():
                 mode TEXT,
                 role TEXT DEFAULT 'anchor',
                 mobility TEXT DEFAULT 'fixed',
+                category TEXT DEFAULT 'Head Office',
+                type TEXT DEFAULT '',
                 x REAL DEFAULT 0.0,
                 y REAL DEFAULT 0.0,
                 status TEXT DEFAULT 'online',

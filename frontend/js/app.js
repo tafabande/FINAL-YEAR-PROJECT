@@ -5,6 +5,9 @@ const app = {
     init() {
         this.initTheme();
         
+        // Ensure app object is globally accessible for onsubmit/onclick handlers
+        window.app = this;
+        
         window.fetch = async (...args) => {
             let [resource, config] = args;
             config = config || {};
@@ -14,9 +17,12 @@ const app = {
                 config.headers['X-API-Key'] = token;
             }
             try {
-                const response = await this.originalFetch.call(window, resource, config);
+                const response = await this.originalFetch.apply(window, args.length > 1 ? [resource, config] : [resource]);
                 if(response.status === 401 && typeof resource === 'string' && resource.includes('/api/') && !resource.includes('/api/auth') && !resource.includes('/api/telemetry')) {
-                    this.showLogin();
+                    // Only show login if it's not a GET request (which might be allowed for guests)
+                    if (config.method && config.method !== 'GET') {
+                        this.showLogin();
+                    }
                 }
                 return response;
             } catch (err) {
@@ -25,23 +31,32 @@ const app = {
             }
         };
 
-        if(!localStorage.getItem('tracker_token')) {
-            this.showLogin();
-        } else {
-            this.startApp();
-        }
+        this.startApp();
     },
 
     startApp() {
-        const role = localStorage.getItem('tracker_role') || 'ordinary';
-        if (role === 'ordinary') {
-            const navSetup = document.getElementById('nav-setup');
-            const navBeta = document.getElementById('nav-beta');
-            const navGuide = document.getElementById('nav-guide');
+        const token = localStorage.getItem('tracker_token');
+        const role = localStorage.getItem('tracker_role') || 'guest';
+        
+        const navSetup = document.getElementById('nav-setup');
+        const navBeta = document.getElementById('nav-beta');
+        const navGuide = document.getElementById('nav-guide');
+        const navUsers = document.getElementById('nav-users');
+        
+        if (!token || role === 'ordinary') {
             if (navSetup) navSetup.style.display = 'none';
             if (navBeta) navBeta.style.display = 'none';
             if (navGuide) navGuide.style.display = 'none';
+            if (navUsers) navUsers.style.display = 'none';
+        } else {
+            if (navSetup) navSetup.style.display = 'flex';
+            if (navBeta) navBeta.style.display = 'flex';
+            if (navGuide) navGuide.style.display = 'flex';
+            if (navUsers) navUsers.style.display = 'flex';
         }
+
+        // Update Login/Logout button in UI if it exists
+        this.updateAuthUI();
 
         this.navigate('dashboard');
         this.initChart();
@@ -52,8 +67,34 @@ const app = {
         setTimeout(() => this.initMap(), 500);
     },
 
+    updateAuthUI() {
+        const authBtn = document.getElementById('auth-btn');
+        const authToken = localStorage.getItem('tracker_token');
+        if (authBtn) {
+            if (authToken) {
+                authBtn.innerHTML = `<span class="material-icons-outlined text-xl text-alert">logout</span><span class="whitespace-nowrap text-sm md:text-base font-medium">Logout</span>`;
+                authBtn.onclick = () => this.logout();
+                authBtn.title = "Logout session";
+            } else {
+                authBtn.innerHTML = `<span class="material-icons-outlined text-xl text-green-400">login</span><span class="whitespace-nowrap text-sm md:text-base font-medium">Login</span>`;
+                authBtn.onclick = () => this.showLogin();
+                authBtn.title = "Admin Login";
+            }
+        }
+    },
+
+    logout() {
+        localStorage.removeItem('tracker_token');
+        localStorage.removeItem('tracker_role');
+        localStorage.removeItem('tracker_username');
+        window.location.reload();
+    },
+
     showLogin() {
+        // Prevent showing login if it's already visible
         const modal = document.getElementById('login-modal');
+        if (!modal.classList.contains('hidden')) return;
+
         const card = document.getElementById('login-card');
         const btnText = document.getElementById('unlock-btn-text');
         const btnIcon = document.getElementById('unlock-btn-icon');
@@ -108,6 +149,7 @@ const app = {
             if(res.ok) {
                 localStorage.setItem('tracker_token', data.token);
                 localStorage.setItem('tracker_role', data.role);
+                localStorage.setItem('tracker_username', data.username || username);
                 card.classList.add('animate-success');
                 btnText.innerText = 'Authorized';
                 btnIcon.innerText = 'check_circle';
@@ -119,6 +161,9 @@ const app = {
                     pwdInput.value = '';
                     userInp.value = '';
                     this.startApp();
+                    
+                    // If we were on a restricted view and now we have access, navigate there
+                    // For now, startApp defaults to dashboard, which is safe.
                 }, 800);
             } else {
                 card.classList.add('animate-shake', 'login-card-error');
@@ -245,6 +290,15 @@ const app = {
     },
 
     navigate(viewId) {
+        const token = localStorage.getItem('tracker_token');
+        const role = localStorage.getItem('tracker_role') || 'guest';
+        const restricted = ['setup', 'beta', 'guide', 'users'];
+
+        if (restricted.includes(viewId) && (!token || role === 'ordinary')) {
+            this.showLogin();
+            return;
+        }
+
         document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
         const view = document.getElementById(`view-${viewId}`);
         if(view) view.classList.remove('hidden');
@@ -253,6 +307,9 @@ const app = {
         if(nav) nav.classList.add('active');
         if(viewId === 'dashboard' && this.map) {
             setTimeout(() => this.map.invalidateSize(), 100);
+        }
+        if(viewId === 'users') {
+            this.loadUsers();
         }
         
         if(viewId === 'beta' && !this.betaMapInitialized) {
@@ -371,16 +428,24 @@ const app = {
             const [nodesRes, tagsRes, posRes] = await Promise.all([
                 window.fetch('/api/nodes'), window.fetch('/api/tags'), window.fetch('/api/positions')
             ]);
-            this.state.nodes = await nodesRes.json();
-            this.state.tags = await tagsRes.json();
-            this.state.positions = await posRes.json();
+            this.state.nodes = Array.isArray(await nodesRes.json()) ? await nodesRes.json() : [];
+            this.state.tags = Array.isArray(await tagsRes.json()) ? await tagsRes.json() : [];
+            this.state.positions = Array.isArray(await posRes.json()) ? await posRes.json() : [];
+            
+            // Auto-refresh user list if user is on users view
+            const usersView = document.getElementById('view-users');
+            if (usersView && !usersView.classList.contains('hidden')) {
+                this.loadUsers();
+            }
             
             const now = new Date();
-            this.state.nodes.forEach(n => {
-                if(!n.last_seen) { n.isOnline = false; return; }
-                const dt = new Date(n.last_seen + 'Z'); 
-                n.isOnline = (now - dt) < 50000;
-            });
+            if (Array.isArray(this.state.nodes)) {
+                this.state.nodes.forEach(n => {
+                    if(!n.last_seen) { n.isOnline = false; return; }
+                    const dt = new Date(n.last_seen + 'Z'); 
+                    n.isOnline = (now - dt) < 50000;
+                });
+            }
             
             this.updateDashboard();
             this.renderSetupTables();
@@ -391,13 +456,13 @@ const app = {
     },
 
     updateDashboard() {
-        const totalTags = this.state.tags.length;
-        const totalNodes = this.state.nodes.length;
-        const nodesOnline = this.state.nodes.filter(n => n.isOnline).length;
+        const totalTags = Array.isArray(this.state.tags) ? this.state.tags.length : 0;
+        const totalNodes = Array.isArray(this.state.nodes) ? this.state.nodes.length : 0;
+        const nodesOnline = Array.isArray(this.state.nodes) ? this.state.nodes.filter(n => n.isOnline).length : 0;
         const nodesOffline = totalNodes - nodesOnline;
         
-        const activePositions = this.state.positions;
-        const lowConfTags = activePositions.filter(p => p.confidence < 50).length;
+        const activePositions = Array.isArray(this.state.positions) ? this.state.positions : [];
+        const lowConfTags = activePositions.filter(p => p && typeof p.confidence !== 'undefined' && p.confidence < 50).length;
         
         const sumConf = activePositions.reduce((sum, p) => sum + p.confidence, 0);
         const avgConf = activePositions.length ? Math.round(sumConf / activePositions.length) : 0;
@@ -406,7 +471,8 @@ const app = {
         document.getElementById('war-total-nodes').innerText = totalNodes;
         document.getElementById('war-nodes-online').innerText = nodesOnline;
         document.getElementById('war-nodes-offline').innerText = nodesOffline;
-        document.getElementById('war-tags-active').innerText = activePositions.length;
+        const warTagsActive = document.getElementById('war-tags-active');
+        if (warTagsActive) warTagsActive.innerText = activePositions.length;
         document.getElementById('war-tags-low-conf').innerText = lowConfTags;
         document.getElementById('war-avg-conf').innerText = avgConf + '%';
         
@@ -433,7 +499,7 @@ const app = {
                 </tr>`
             }).join('');
             
-        document.getElementById('war-nodes-tbody').innerHTML = this.state.nodes.length === 0
+        document.getElementById('war-nodes-tbody').innerHTML = !Array.isArray(this.state.nodes) || this.state.nodes.length === 0
             ? `<tr><td colspan="3" class="text-center py-8 ${textMuted}"><span class="material-icons-outlined text-4xl block mb-2 opacity-20">router</span>No nodes registered</td></tr>`
             : this.state.nodes.map(n => {
                 const status = n.isOnline 
@@ -554,17 +620,32 @@ const app = {
         const textMuted = theme === 'light' ? 'text-slate-500' : 'text-slate-500';
         const textPrimary = theme === 'light' ? 'text-slate-900' : 'text-white';
 
+        const searchTerm = (document.getElementById('setup-search')?.value || '').toLowerCase();
+        
+        const filteredNodes = this.state.nodes.filter(n => 
+            n.name.toLowerCase().includes(searchTerm) || 
+            n.mac.toLowerCase().includes(searchTerm) ||
+            (n.category && n.category.toLowerCase().includes(searchTerm)) ||
+            (n.type && n.type.toLowerCase().includes(searchTerm))
+        );
+
         const tbodyNodes = document.getElementById('nodes-table-body');
-        tbodyNodes.innerHTML = this.state.nodes.length === 0 ? `<tr><td colspan="5" class="py-8 text-center ${textMuted}"><span class="material-icons-outlined text-4xl block mb-2 opacity-20">router</span>No nodes</td></tr>` : this.state.nodes.map(n => {
+        tbodyNodes.innerHTML = filteredNodes.length === 0 ? `<tr><td colspan="5" class="py-8 text-center ${textMuted}"><span class="material-icons-outlined text-4xl block mb-2 opacity-20">router</span>No nodes found</td></tr>` : filteredNodes.map(n => {
             const status = n.isOnline ? `<span class="text-green-500 font-bold">Online</span>` : `<span class="text-alert font-bold">Offline</span>`;
+            const typeInfo = n.type ? `<br><span class="text-[10px] ${textMuted}">${n.type}</span>` : '';
             return `
             <tr class="border-b ${rowBorderColor} ${rowHoverBg} transition-colors">
                 <td class="px-6 py-4 font-medium ${textPrimary}">
                     <input type="text" value="${n.name}" onchange="app.updateNodeField('${n.mac}', 'name', this.value)" class="bg-transparent border-b border-transparent hover:border-slate-500 focus:border-accent outline-none ${textPrimary} text-sm w-32 pb-0.5 transition-all">
+                    ${typeInfo}
                 </td>
                 <td class="px-6 py-4">
                     <div class="text-xs font-mono ${textMuted} mb-1">${n.mac}</div>
-                    <div class="flex gap-1 text-[10px] uppercase font-bold text-accent"><span class="bg-slate-200 dark:bg-slate-800 px-1 rounded">${n.role}</span><span class="bg-slate-200 dark:bg-slate-800 px-1 rounded">${n.mobility}</span></div>
+                    <div class="flex flex-wrap gap-1 text-[10px] uppercase font-bold text-accent">
+                        <span class="bg-slate-200 dark:bg-slate-800 px-1 rounded">${n.role}</span>
+                        <span class="bg-slate-200 dark:bg-slate-800 px-1 rounded">${n.mobility}</span>
+                        <span class="bg-sky-100 dark:bg-sky-900/40 text-sky-600 dark:text-sky-400 px-1 rounded border border-sky-200 dark:border-sky-800/50">${n.category || 'Office'}</span>
+                    </div>
                 </td>
                 <td class="px-6 py-4 text-sm font-mono ${textMuted}">
                     X: <input type="number" value="${n.x}" onchange="app.updateNodeField('${n.mac}', 'x', this.value)" class="w-12 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs px-1 py-1 rounded text-center">
@@ -582,9 +663,18 @@ const app = {
             </tr>
         `}).join('');
 
+        const filteredTags = this.state.tags.filter(t => 
+            t.name.toLowerCase().includes(searchTerm) || 
+            t.mac.toLowerCase().includes(searchTerm) ||
+            (t.machine && t.machine.toLowerCase().includes(searchTerm)) ||
+            (t.category && t.category.toLowerCase().includes(searchTerm)) ||
+            (t.type && t.type.toLowerCase().includes(searchTerm))
+        );
+
         const tbodyTags = document.getElementById('tags-table-body');
-        tbodyTags.innerHTML = this.state.tags.length === 0 ? `<tr><td colspan="4" class="py-8 text-center ${textMuted}"><span class="material-icons-outlined text-4xl block mb-2 opacity-20">tag</span>No tags</td></tr>` : this.state.tags.map(t => {
-            const bindInfo = t.machine ? `<br><span class="text-xs ${textMuted}">Bind: ${t.machine}</span>` : '';
+        tbodyTags.innerHTML = filteredTags.length === 0 ? `<tr><td colspan="4" class="py-8 text-center ${textMuted}"><span class="material-icons-outlined text-4xl block mb-2 opacity-20">tag</span>No tags found</td></tr>` : filteredTags.map(t => {
+            const bindInfo = t.machine ? `<br><span class="text-xs ${textMuted}">ID: ${t.machine}</span>` : '';
+            const typeBadge = t.type ? `<span class="ml-1 text-[10px] bg-slate-200 dark:bg-slate-800 ${textMuted} px-1.5 py-0.5 rounded border border-slate-300 dark:border-slate-700">${t.type}</span>` : '';
             return `
             <tr class="border-b ${rowBorderColor} ${rowHoverBg} transition-colors">
                 <td class="px-6 py-4">
@@ -592,7 +682,10 @@ const app = {
                     <div class="text-xs ${textMuted} mt-1 font-mono">${t.mac}</div>
                     ${bindInfo}
                 </td>
-                <td class="px-6 py-4"><span class="text-xs bg-slate-200 dark:bg-slate-800 ${textMuted} px-2 py-1 rounded inline-block border border-slate-300 dark:border-slate-700">${t.category}</span></td>
+                <td class="px-6 py-4">
+                    <span class="text-xs bg-sky-100 dark:bg-sky-900/40 text-sky-600 dark:text-sky-400 px-2 py-1 rounded inline-block border border-sky-200 dark:border-sky-800/50">${t.category}</span>
+                    ${typeBadge}
+                </td>
                 <td class="px-6 py-4 text-sm ${textMuted}">${t.interval} ms</td>
                 <td class="px-6 py-4 text-right">
                     <button onclick="app.showTagConfig('${t.mac}')" class="px-2 py-1 bg-green-500/10 hover:bg-green-500/20 text-green-500 text-xs rounded border border-green-500/20 font-bold transition-all flex items-center gap-1 inline-flex">
@@ -613,6 +706,10 @@ const app = {
         document.getElementById(id).classList.add('hidden');
     },
     
+    filterSetup(val) {
+        this.renderSetupTables();
+    },
+
     async quickAddNode() {
         const idStr = Math.floor(1000 + Math.random() * 9000);
         const mac = `NODE-${idStr}`;
@@ -638,7 +735,17 @@ const app = {
         try {
             await window.fetch('/api/nodes', {
                 method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ mac: node.mac, name: node.name, role: node.role, mobility: node.mobility, x: node.x, y: node.y, mode: node.mode })
+                body: JSON.stringify({ 
+                    mac: node.mac, 
+                    name: node.name, 
+                    role: node.role, 
+                    mobility: node.mobility, 
+                    category: node.category || 'Head Office',
+                    type: node.type || '',
+                    x: node.x, 
+                    y: node.y, 
+                    mode: node.mode 
+                })
             });
             this.pollData();
         } catch (e) { console.error(e); }
@@ -668,17 +775,26 @@ const app = {
         try {
             await window.fetch('/api/tags', {
                 method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ mac: tag.mac, name: tag.name, machine: tag.machine || '', category: tag.category, interval: tag.interval })
+                body: JSON.stringify({ 
+                    mac: tag.mac, 
+                    name: tag.name, 
+                    machine: tag.machine || '', 
+                    category: tag.category, 
+                    type: tag.type || '',
+                    interval: tag.interval 
+                })
             });
             this.pollData();
         } catch (e) { console.error(e); }
     },
 
     showNodeModal(mac) {
-        let n = this.state.nodes.find(x => x.mac === mac) || { mac: '', name: '', role: 'anchor', mobility: 'fixed', x: 0, y: 0, mode: 'esp32' };
+        let n = this.state.nodes.find(x => x.mac === mac) || { mac: '', name: '', role: 'anchor', mobility: 'fixed', category: 'Head Office', type: '', x: 0, y: 0, mode: 'esp32' };
         document.getElementById('node-mac').value = n.mac;
         document.getElementById('node-mac').readOnly = !!n.mac;
         document.getElementById('node-name').value = n.name;
+        document.getElementById('node-category').value = n.category || 'Head Office';
+        document.getElementById('node-type').value = n.type || '';
         document.getElementById('node-role').value = n.role;
         document.getElementById('node-mobility').value = n.mobility;
         document.getElementById('node-x').value = n.x;
@@ -695,6 +811,8 @@ const app = {
                 body: JSON.stringify({
                     mac: document.getElementById('node-mac').value,
                     name: document.getElementById('node-name').value,
+                    category: document.getElementById('node-category').value,
+                    type: document.getElementById('node-type').value,
                     role: document.getElementById('node-role').value,
                     mobility: document.getElementById('node-mobility').value,
                     x: parseFloat(document.getElementById('node-x').value) || 0,
@@ -712,12 +830,13 @@ const app = {
     },
 
     showTagModal(mac) {
-        let t = this.state.tags.find(x => x.mac === mac) || { mac: '', name: '', machine: '', category: 'Asset', interval: 500 };
+        let t = this.state.tags.find(x => x.mac === mac) || { mac: '', name: '', machine: '', category: 'Asset', type: '', interval: 500 };
         document.getElementById('tag-mac').value = t.mac;
         document.getElementById('tag-mac').readOnly = !!t.mac;
         document.getElementById('tag-name').value = t.name;
         document.getElementById('tag-machine').value = t.machine || '';
         document.getElementById('tag-category').value = t.category;
+        document.getElementById('tag-type').value = t.type || '';
         document.getElementById('tag-interval').value = t.interval;
         this.showModal('tag-modal');
     },
@@ -732,6 +851,7 @@ const app = {
                     name: document.getElementById('tag-name').value,
                     machine: document.getElementById('tag-machine').value,
                     category: document.getElementById('tag-category').value,
+                    type: document.getElementById('tag-type').value,
                     interval: parseInt(document.getElementById('tag-interval').value) || 500
                 })
             });
@@ -792,7 +912,152 @@ const app = {
     dlFile(content, name, type) {
         const a = document.createElement("a");
         a.href = URL.createObjectURL(new Blob([content], {type})); a.download = name; a.click();
+    },
+
+    // ── User Management ──
+    async loadUsers() {
+        try {
+            const res = await window.fetch('/api/users');
+            if (!res.ok) throw new Error('Failed to fetch users');
+            const users = await res.json();
+            const theme = document.documentElement.getAttribute('data-theme') || 'dark';
+            const rowBorderColor = theme === 'light' ? 'border-slate-200' : 'border-slate-700/50';
+            const rowHoverBg = theme === 'light' ? 'hover:bg-slate-100' : 'hover:bg-slate-800/30';
+            const textMuted = 'text-secondary';
+            const textPrimary = theme === 'light' ? 'text-slate-900' : 'text-white';
+            const currentUser = localStorage.getItem('tracker_username');
+
+            const countEl = document.getElementById('users-count');
+            if (countEl) countEl.innerText = `${users.length} User${users.length !== 1 ? 's' : ''}`;
+
+            const tbody = document.getElementById('users-table-body');
+            if (!tbody) return;
+            tbody.innerHTML = users.length === 0
+                ? `<tr><td colspan="4" class="text-center py-8 ${textMuted}"><span class="material-icons-outlined text-4xl block mb-2 opacity-20">people</span>No users found</td></tr>`
+                : users.map(u => {
+                    const roleColor = u.role === 'admin' ? 'text-cyan-400 bg-cyan-400/10 border-cyan-400/20' : 'text-green-400 bg-green-400/10 border-green-400/20';
+                    const isSelf = u.username === currentUser;
+                    return `
+                    <tr class="border-b ${rowBorderColor} ${rowHoverBg} transition-colors">
+                        <td class="px-6 py-4 font-mono text-xs ${textMuted}">${u.id}</td>
+                        <td class="px-6 py-4 font-medium ${textPrimary}">${u.username}${isSelf ? ' <span class="text-[10px] text-accent">(you)</span>' : ''}</td>
+                        <td class="px-6 py-4"><span class="text-[10px] uppercase font-bold px-2 py-1 rounded border ${roleColor}">${u.role}</span></td>
+                        <td class="px-6 py-4 text-right">
+                            ${isSelf ? '<span class="text-[10px] text-secondary italic">Current session</span>' : `<button onclick="app.deleteUser(${u.id}, '${u.username.replace(/'/g, "\\'")}')" class="px-2 py-1 bg-alert/10 hover:bg-alert/20 text-alert text-xs rounded border border-alert/20 font-bold transition-all flex items-center gap-1 inline-flex"><span class="material-icons-outlined text-sm">delete</span>Remove</button>`}
+                        </td>
+                    </tr>`;
+                }).join('');
+        } catch (e) {
+            console.error('loadUsers error:', e);
+        }
+    },
+
+    async addUser(e) {
+        if (e) e.preventDefault();
+        console.log("[DEBUG_LOG] addUser triggered");
+
+        const feedback = document.getElementById('add-user-feedback');
+        const userInp = document.getElementById('new-user-username');
+        const pwdInp = document.getElementById('new-user-password');
+        const roleInp = document.getElementById('new-user-role');
+
+        if (!feedback || !userInp || !pwdInp || !roleInp) {
+            console.error("[DEBUG_LOG] Form elements missing from DOM at runtime", { feedback, userInp, pwdInp, roleInp });
+            // Fallback attempt to find elements in case of nested rendering issues
+            const subFeedback = document.querySelector('#add-user-feedback');
+            if (!subFeedback) {
+                alert("Critical Error: User Management form elements are missing from the page. Please reload.");
+                return;
+            }
+        }
+
+        const username = userInp.value.trim();
+        const password = pwdInp.value;
+        const role = roleInp.value;
+
+        if (!username || !password) {
+            this.showFeedback(feedback, "Username and password are required.", "bg-alert/20 text-alert");
+            return;
+        }
+
+        console.log("[DEBUG_LOG] Sending create user request for:", username);
+        this.showFeedback(feedback, "Creating user...", "bg-accent/10 text-accent");
+
+        try {
+            const res = await window.fetch('/api/users', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password, role })
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                console.log("[DEBUG_LOG] User created successfully:", username);
+                this.showFeedback(feedback, "User created successfully!", "bg-green-500/20 text-green-400");
+                userInp.value = '';
+                pwdInp.value = '';
+                roleInp.value = 'ordinary';
+                this.loadUsers();
+                setTimeout(() => feedback.classList.add('hidden'), 3000);
+            } else {
+                feedback.innerText = data.error || 'Failed to create user.';
+                feedback.className = 'text-alert text-xs font-medium text-center py-2 rounded bg-alert/20';
+                feedback.classList.remove('hidden');
+            }
+        } catch (err) {
+            console.error('[DEBUG_LOG] addUser error:', err);
+            feedback.innerText = 'Network error: check if server is running.';
+            feedback.className = 'text-alert text-xs font-medium text-center py-2 rounded bg-alert/20';
+            feedback.classList.remove('hidden');
+        }
+    },
+
+    async deleteUser(id, username) {
+        if (!confirm(`Are you sure you want to delete user "${username}"?`)) return;
+        try {
+            const res = await window.fetch(`/api/users/${id}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (res.ok) {
+                this.loadUsers();
+            } else {
+                alert(data.error || 'Failed to delete user.');
+            }
+        } catch (err) {
+            alert('Network error: check if server is running.');
+        }
     }
 };
 
-window.onload = () => app.init();
+window.onload = () => {
+    app.init();
+
+    // ── 3D Interactive Tilt Engine ──
+    document.addEventListener('mousemove', (e) => {
+        document.querySelectorAll('.card-3d, .card-3d-deep').forEach(card => {
+            const rect = card.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            const distX = e.clientX - centerX;
+            const distY = e.clientY - centerY;
+            const maxDist = 600;
+            
+            if (Math.abs(distX) < maxDist && Math.abs(distY) < maxDist) {
+                const rotateY = (distX / maxDist) * 4;
+                const rotateX = -(distY / maxDist) * 4;
+                const translateZ = Math.max(0, 15 - (Math.abs(distX) + Math.abs(distY)) / maxDist * 15);
+                card.style.transform = `perspective(1200px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateZ(${translateZ}px)`;
+            }
+        });
+    });
+
+    // Reset tilt on mouse leave from cards
+    document.addEventListener('mouseover', (e) => {
+        const card = e.target.closest('.card-3d, .card-3d-deep');
+        if (card) {
+            card.addEventListener('mouseleave', function handler() {
+                card.style.transform = '';
+                card.removeEventListener('mouseleave', handler);
+            });
+        }
+    });
+};
