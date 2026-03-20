@@ -17,6 +17,7 @@ def trilaterate(nodes):
     if len(nodes) == 1:
         return nodes[0]['x'], nodes[0]['y']
         
+    # Initial guess: weighted average based on inverse distance
     total_w = sum(1.0/max(0.1, n['d']) for n in nodes)
     guess_x = sum((1.0/max(0.1, n['d'])) * n['x'] for n in nodes) / total_w
     guess_y = sum((1.0/max(0.1, n['d'])) * n['y'] for n in nodes) / total_w
@@ -26,14 +27,25 @@ def trilaterate(nodes):
         grad_x = 0.0
         grad_y = 0.0
         for n in nodes:
+            # Euclidean distance from current guess to node
             dc = math.hypot(guess_x - n['x'], guess_y - n['y'])
-            if dc == 0: continue
+            if dc < 0.001: dc = 0.001 # Avoid division by zero
+            
+            # Error between current distance and measured distance
             error = dc - n['d']
+            
+            # Gradient of squared error: (dc - d)^2
+            # d/dx = 2 * (dc - d) * d/dx(dc) = 2 * (dc - d) * (guess_x - n_x) / dc
             grad_x += 2 * error * (guess_x - n['x']) / dc
             grad_y += 2 * error * (guess_y - n['y']) / dc
             
+        # Update guess
         guess_x -= learning_rate * grad_x
         guess_y -= learning_rate * grad_y
+        
+        # Keep within reasonable bounds (0-100 for this system)
+        guess_x = max(-50, min(150, guess_x))
+        guess_y = max(-50, min(150, guess_y))
         
     return guess_x, guess_y
 

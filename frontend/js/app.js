@@ -2,12 +2,109 @@ const app = {
     state: { nodes: [], tags: [], positions: [], settings: {}, chartInstance: null },
 
     init() {
+        this.initTheme();
         this.navigate('dashboard');
         this.initChart();
         this.pollData();
         this.pollSettings();
         setInterval(() => this.pollData(), 3000);
         setTimeout(() => this.initMap(), 500);
+    },
+
+    initTheme() {
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        this.setTheme(savedTheme);
+    },
+
+    setTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('theme', theme);
+        const icon = document.getElementById('theme-icon');
+        const text = document.getElementById('theme-text');
+        const subtext = text ? text.nextElementSibling : null;
+
+        if (theme === 'light') {
+            document.body.classList.remove('bg-darkBg', 'text-slate-300');
+            document.body.classList.add('bg-primary', 'text-primary');
+            if (icon) icon.innerText = 'light_mode';
+            if (text) text.innerText = 'Light Mode';
+            if (subtext) subtext.innerText = 'Click to switch to Dark Mode';
+        } else {
+            document.body.classList.add('bg-darkBg', 'text-slate-300');
+            document.body.classList.remove('bg-primary', 'text-primary');
+            if (icon) icon.innerText = 'dark_mode';
+            if (text) text.innerText = 'Dark Mode';
+            if (subtext) subtext.innerText = 'Click to switch to Light Mode';
+        }
+        if (this.chartInstance) {
+            this.updateChartTheme(theme);
+        }
+        if (this.map) {
+            this.updateMapTheme(theme);
+        }
+    },
+
+    toggleNodeFab() {
+        const popover = document.getElementById('node-list-popover');
+        if (popover.classList.contains('hidden')) {
+            popover.classList.remove('hidden');
+            const list = document.getElementById('fab-node-list');
+            if (this.state.nodes.length === 0) {
+                list.innerHTML = `<p class="text-xs text-slate-500">No anchors found.</p>`;
+            } else {
+                list.innerHTML = this.state.nodes.map(n => 
+                    `<button onclick="app.locateNode(${n.x}, ${n.y}, '${n.name.replace(/'/g, "\\'")}')" class="text-left py-1.5 px-2 text-sm text-slate-300 hover:text-white hover:bg-slate-700/50 rounded transition-colors truncate w-full flex items-center">
+                        <span class="material-icons-outlined text-[14px] mr-2 text-accent">pin_drop</span>${n.name}
+                    </button>`
+                ).join('');
+            }
+        } else {
+            popover.classList.add('hidden');
+        }
+    },
+
+    locateNode(x, y, name) {
+        if (!this.map) return;
+        this.navigate('dashboard');
+        
+        // Reset popover
+        document.getElementById('node-list-popover').classList.add('hidden');
+        
+        // Fly to position
+        this.map.flyTo([y * 10, x * 10], 1, { duration: 1.5 });
+        
+        // Show popup
+        setTimeout(() => {
+            L.popup({ className: 'custom-node-popup border-0 shadow-lg', autoPan: true, closeButton: false })
+                .setLatLng([y * 10 + 2, x * 10])
+                .setContent(`<div class="bg-slate-800 text-white px-3 py-2 rounded-lg border border-accent shadow-[0_0_15px_rgba(56,189,248,0.3)]"><span class="font-bold text-accent">${name}</span><br><span class="text-[10px] text-slate-400 font-mono">X:${x} Y:${y}</span></div>`)
+                .openOn(this.map);
+        }, 1500);
+    },
+
+    toggleTheme() {
+        const currentTheme = document.documentElement.getAttribute('data-theme');
+        this.setTheme(currentTheme === 'light' ? 'dark' : 'light');
+    },
+
+    updateChartTheme(theme) {
+        const textColor = theme === 'light' ? '#0f172a' : '#94a3b8';
+        this.chartInstance.options.scales.y.ticks.color = textColor;
+        this.chartInstance.options.scales.x.ticks.color = textColor;
+        this.chartInstance.update();
+    },
+
+    updateMapTheme(theme) {
+        if (!this.map) return;
+        const mapContainer = document.getElementById('leaflet-map');
+        if (theme === 'light') {
+            mapContainer.style.background = '#f1f5f9';
+            if (this.mapOverlay) {
+                // You could swap the overlay here if you have a light version
+            }
+        } else {
+            mapContainer.style.background = '#0f172a';
+        }
     },
 
     navigate(viewId) {
@@ -17,7 +114,9 @@ const app = {
         document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
         const nav = document.getElementById(`nav-${viewId}`);
         if(nav) nav.classList.add('active');
-        if(viewId === 'dashboard' && this.map) this.map.invalidateSize();
+        if(viewId === 'dashboard' && this.map) {
+            setTimeout(() => this.map.invalidateSize(), 100);
+        }
         
         if(viewId === 'beta' && !this.betaMapInitialized) {
             this.betaMapInitialized = true;
@@ -32,8 +131,12 @@ const app = {
     },
 
     exportLogs(type) {
-        if(type === 'rssi') window.open('/api/export/logs', '_blank');
-        if(type === 'positions') window.open('/api/export/positions', '_blank');
+        const a = document.createElement('a');
+        a.href = type === 'rssi' ? '/api/export/logs' : '/api/export/positions';
+        a.download = type === 'rssi' ? 'rssi_logs.csv' : 'position_history.csv';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
     },
 
     generateHeatmap() {
@@ -171,30 +274,36 @@ const app = {
         document.getElementById('war-last-update').innerText = new Date().toLocaleTimeString();
         document.getElementById('war-active-mode').innerText = (this.state.settings.global_mode || 'ESP32').toUpperCase();
 
+        const theme = document.documentElement.getAttribute('data-theme') || 'dark';
+        const rowBorderColor = theme === 'light' ? 'border-slate-200' : 'border-slate-700/50';
+        const rowHoverBg = theme === 'light' ? 'hover:bg-slate-100' : 'hover:bg-slate-800/30';
+        const textMuted = theme === 'light' ? 'text-slate-500' : 'text-slate-500';
+        const textPrimary = theme === 'light' ? 'text-slate-900' : 'text-white';
+
         document.getElementById('war-tags-tbody').innerHTML = activePositions.length === 0 
-            ? `<tr><td colspan="4" class="text-center py-4 text-slate-500">No active telemetry</td></tr>`
+            ? `<tr><td colspan="4" class="text-center py-8 ${textMuted}"><span class="material-icons-outlined text-4xl block mb-2 opacity-20">sensors_off</span>No active telemetry</td></tr>`
             : activePositions.map(p => {
-                const confColor = p.confidence > 70 ? 'text-green-400' : (p.confidence > 40 ? 'text-yellow-400' : 'text-alert');
+                const confColor = p.confidence > 70 ? 'text-green-500' : (p.confidence > 40 ? 'text-yellow-500' : 'text-alert');
                 const rssiDisplay = p.rssi ? `${p.rssi} dBm` : 'N/A';
                 return `
-                <tr class="border-b border-slate-700/50 hover:bg-slate-800/30">
-                    <td class="px-4 py-3 font-medium text-white">${p.name} <span class="text-[10px] text-slate-500 block mt-0.5">${p.mac} &bull; Seen: ${p.last_seen || 'Connecting...'}</span></td>
-                    <td class="px-4 py-3 font-mono text-slate-400 text-xs text-accent">(${p.x}, ${p.y})</td>
-                    <td class="px-4 py-3 font-mono text-slate-400 text-xs">${rssiDisplay}</td>
+                <tr class="border-b ${rowBorderColor} ${rowHoverBg} transition-colors">
+                    <td class="px-4 py-3 font-medium ${textPrimary}">${p.name} <span class="text-[10px] ${textMuted} block mt-0.5 font-mono">${p.mac} &bull; Seen: ${p.last_seen || 'Connecting...'}</span></td>
+                    <td class="px-4 py-3 font-mono ${textMuted} text-xs text-accent">(${p.x}, ${p.y})</td>
+                    <td class="px-4 py-3 font-mono ${textMuted} text-xs">${rssiDisplay}</td>
                     <td class="px-4 py-3 text-right font-bold ${confColor}">${p.confidence}%</td>
                 </tr>`
             }).join('');
             
         document.getElementById('war-nodes-tbody').innerHTML = this.state.nodes.length === 0
-            ? `<tr><td colspan="3" class="text-center py-4 text-slate-500">No nodes registered</td></tr>`
+            ? `<tr><td colspan="3" class="text-center py-8 ${textMuted}"><span class="material-icons-outlined text-4xl block mb-2 opacity-20">router</span>No nodes registered</td></tr>`
             : this.state.nodes.map(n => {
                 const status = n.isOnline 
-                    ? `<span class="bg-green-500/10 text-green-400 px-2 py-0.5 rounded border border-green-500/20 text-[10px] uppercase font-bold flex items-center gap-1 inline-flex"><div class="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></div> Online</span>`
+                    ? `<span class="bg-green-500/10 text-green-500 px-2 py-0.5 rounded border border-green-500/20 text-[10px] uppercase font-bold flex items-center gap-1 inline-flex"><div class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div> Online</span>`
                     : `<span class="bg-alert/10 text-alert px-2 py-0.5 rounded border border-alert/20 text-[10px] uppercase font-bold">Offline</span>`;
                 return `
-                <tr class="border-b border-slate-700/50 hover:bg-slate-800/30">
-                    <td class="px-4 py-3 text-white"><div class="font-medium text-sm">${n.name}</div><div class="text-[10px] text-slate-500 font-mono mt-0.5">${n.mac} &bull; Seen: ${n.last_seen || 'Offline'}</div></td>
-                    <td class="px-4 py-3 text-slate-400 text-xs uppercase">${n.role} / ${n.mode}</td>
+                <tr class="border-b ${rowBorderColor} ${rowHoverBg} transition-colors">
+                    <td class="px-4 py-3 ${textPrimary}"><div class="font-medium text-sm">${n.name}</div><div class="text-[10px] ${textMuted} font-mono mt-0.5">${n.mac} &bull; Seen: ${n.last_seen || 'Offline'}</div></td>
+                    <td class="px-4 py-3 ${textMuted} text-xs uppercase font-semibold tracking-wider">${n.role} / ${n.mode}</td>
                     <td class="px-4 py-3 text-right">${status}</td>
                 </tr>`
             }).join('');
@@ -210,11 +319,24 @@ const app = {
 
     initChart() {
         const ctx = document.getElementById('activityChart').getContext('2d');
-        Chart.defaults.color = '#94a3b8';
+        const theme = document.documentElement.getAttribute('data-theme') || 'dark';
+        const textColor = theme === 'light' ? '#0f172a' : '#94a3b8';
+        
+        Chart.defaults.color = textColor;
         this.state.chartInstance = new Chart(ctx, {
             type: 'line',
             data: { labels: [], datasets: [{ label: 'Active Targets', data: [], borderColor: '#38bdf8', backgroundColor: 'rgba(56, 189, 248, 0.1)', borderWidth: 2, fill: true, tension: 0.4 }] },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false } } }
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false, 
+                plugins: { legend: { display: false } }, 
+                scales: { 
+                    x: { display: false },
+                    y: {
+                        ticks: { color: textColor }
+                    }
+                } 
+            }
         });
     },
 
@@ -250,40 +372,59 @@ const app = {
     },
 
     renderSetupTables() {
+        const theme = document.documentElement.getAttribute('data-theme') || 'dark';
+        const rowBorderColor = theme === 'light' ? 'border-slate-200' : 'border-slate-700/50';
+        const rowHoverBg = theme === 'light' ? 'hover:bg-slate-100' : 'hover:bg-slate-800/30';
+        const textMuted = theme === 'light' ? 'text-slate-500' : 'text-slate-500';
+        const textPrimary = theme === 'light' ? 'text-slate-900' : 'text-white';
+
         const tbodyNodes = document.getElementById('nodes-table-body');
-        tbodyNodes.innerHTML = this.state.nodes.length === 0 ? `<tr><td colspan="5" class="py-4 text-center text-slate-500">No nodes</td></tr>` : this.state.nodes.map(n => {
-            const status = n.isOnline ? `<span class="text-green-400">Online ping</span>` : `<span class="text-alert">Offline link</span>`;
+        tbodyNodes.innerHTML = this.state.nodes.length === 0 ? `<tr><td colspan="5" class="py-8 text-center ${textMuted}"><span class="material-icons-outlined text-4xl block mb-2 opacity-20">router</span>No nodes</td></tr>` : this.state.nodes.map(n => {
+            const status = n.isOnline ? `<span class="text-green-500 font-bold">Online</span>` : `<span class="text-alert font-bold">Offline</span>`;
             return `
-            <tr class="border-b border-slate-700/50 hover:bg-slate-800/30">
-                <td class="px-6 py-4 font-medium text-white">${n.name}</td>
-                <td class="px-6 py-4">
-                    <div class="text-xs font-mono text-slate-400 mb-1">${n.mac}</div>
-                    <div class="flex gap-1 text-[10px] uppercase font-bold text-accent"><span class="bg-slate-800 px-1 rounded">${n.role}</span><span class="bg-slate-800 px-1 rounded">${n.mobility}</span></div>
+            <tr class="border-b ${rowBorderColor} ${rowHoverBg} transition-colors">
+                <td class="px-6 py-4 font-medium ${textPrimary}">
+                    <input type="text" value="${n.name}" onchange="app.updateNodeField('${n.mac}', 'name', this.value)" class="bg-transparent border-b border-transparent hover:border-slate-500 focus:border-accent outline-none ${textPrimary} text-sm w-32 pb-0.5 transition-all">
                 </td>
-                <td class="px-6 py-4 text-sm">(${n.x}, ${n.y})</td>
+                <td class="px-6 py-4">
+                    <div class="text-xs font-mono ${textMuted} mb-1">${n.mac}</div>
+                    <div class="flex gap-1 text-[10px] uppercase font-bold text-accent"><span class="bg-slate-200 dark:bg-slate-800 px-1 rounded">${n.role}</span><span class="bg-slate-200 dark:bg-slate-800 px-1 rounded">${n.mobility}</span></div>
+                </td>
+                <td class="px-6 py-4 text-sm font-mono ${textMuted}">
+                    X: <input type="number" value="${n.x}" onchange="app.updateNodeField('${n.mac}', 'x', this.value)" class="w-12 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs px-1 py-1 rounded text-center">
+                    Y: <input type="number" value="${n.y}" onchange="app.updateNodeField('${n.mac}', 'y', this.value)" class="w-12 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs px-1 py-1 rounded text-center">
+                </td>
                 <td class="px-6 py-4 text-xs font-medium">${status}</td>
                 <td class="px-6 py-4 text-right">
-                    <button onclick="app.showNodeConfig('${n.mac}')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-accent text-xs rounded border border-slate-600 font-bold">Package Generator</button>
-                    <button onclick="app.showNodeModal('${n.mac}')" class="px-2 py-1 text-slate-400 text-xs ml-1 hover:text-white">Edit</button>
+                    <button onclick="app.showNodeConfig('${n.mac}')" class="px-2 py-1 bg-accent/10 hover:bg-accent/20 text-accent text-xs rounded border border-accent/20 font-bold transition-all flex items-center gap-1 inline-flex">
+                        <span class="material-icons-outlined text-sm">code</span> Package
+                    </button>
+                    <button onclick="app.showNodeModal('${n.mac}')" class="p-1 ${textMuted} hover:text-accent transition-all ml-1" title="Advanced">
+                        <span class="material-icons-outlined">more_vert</span>
+                    </button>
                 </td>
             </tr>
         `}).join('');
 
         const tbodyTags = document.getElementById('tags-table-body');
-        tbodyTags.innerHTML = this.state.tags.length === 0 ? `<tr><td colspan="4" class="py-4 text-center text-slate-500">No tags</td></tr>` : this.state.tags.map(t => {
-            const bindInfo = t.machine ? `<br><span class="text-xs text-slate-400">Bind: ${t.machine}</span>` : '';
+        tbodyTags.innerHTML = this.state.tags.length === 0 ? `<tr><td colspan="4" class="py-8 text-center ${textMuted}"><span class="material-icons-outlined text-4xl block mb-2 opacity-20">tag</span>No tags</td></tr>` : this.state.tags.map(t => {
+            const bindInfo = t.machine ? `<br><span class="text-xs ${textMuted}">Bind: ${t.machine}</span>` : '';
             return `
-            <tr class="border-b border-slate-700/50 hover:bg-slate-800/30">
+            <tr class="border-b ${rowBorderColor} ${rowHoverBg} transition-colors">
                 <td class="px-6 py-4">
-                    <div class="font-medium text-white">${t.name}</div>
-                    <div class="text-xs text-slate-400 mt-1">${t.mac}</div>
+                    <input type="text" value="${t.name}" onchange="app.updateTagField('${t.mac}', 'name', this.value)" class="bg-transparent border-b border-transparent hover:border-slate-500 focus:border-accent outline-none ${textPrimary} font-medium text-base w-32 pb-0.5 transition-all">
+                    <div class="text-xs ${textMuted} mt-1 font-mono">${t.mac}</div>
                     ${bindInfo}
                 </td>
-                <td class="px-6 py-4"><span class="text-xs bg-slate-800 text-slate-300 px-2 py-1 rounded inline-block border border-slate-700">${t.category}</span></td>
-                <td class="px-6 py-4 text-sm text-slate-300">${t.interval} ms</td>
+                <td class="px-6 py-4"><span class="text-xs bg-slate-200 dark:bg-slate-800 ${textMuted} px-2 py-1 rounded inline-block border border-slate-300 dark:border-slate-700">${t.category}</span></td>
+                <td class="px-6 py-4 text-sm ${textMuted}">${t.interval} ms</td>
                 <td class="px-6 py-4 text-right">
-                    <button onclick="app.showTagConfig('${t.mac}')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-green-400 text-xs rounded border border-slate-600 font-bold">OTA Flash</button>
-                    <button onclick="app.showTagModal('${t.mac}')" class="px-2 py-1 text-slate-400 text-xs ml-1 hover:text-white">Edit</button>
+                    <button onclick="app.showTagConfig('${t.mac}')" class="px-2 py-1 bg-green-500/10 hover:bg-green-500/20 text-green-500 text-xs rounded border border-green-500/20 font-bold transition-all flex items-center gap-1 inline-flex">
+                        <span class="material-icons-outlined text-sm">bolt</span> Flash
+                    </button>
+                    <button onclick="app.showTagModal('${t.mac}')" class="p-1 ${textMuted} hover:text-accent transition-all ml-1" title="Advanced">
+                        <span class="material-icons-outlined">more_vert</span>
+                    </button>
                 </td>
             </tr>
         `}).join('');
@@ -294,6 +435,51 @@ const app = {
     },
     hideModal(id) {
         document.getElementById(id).classList.add('hidden');
+    },
+    
+    async quickAddNode() {
+        const idStr = Math.floor(1000 + Math.random() * 9000);
+        const mac = `NODE-${idStr}`;
+        const name = `Anchor ${idStr}`;
+        const mode = document.getElementById('global-mode').value || 'esp32';
+        await fetch('/api/nodes', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ mac, name, role: 'anchor', mobility: 'fixed', x: 0, y: 0, mode })
+        });
+        this.pollData();
+    },
+
+    async updateNodeField(mac, field, val) {
+        let node = this.state.nodes.find(n => n.mac === mac);
+        if(!node) return;
+        node[field] = (field === 'x' || field === 'y') ? parseFloat(val) || 0 : val;
+        await fetch('/api/nodes', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ mac: node.mac, name: node.name, role: node.role, mobility: node.mobility, x: node.x, y: node.y, mode: node.mode })
+        });
+        this.pollData();
+    },
+
+    async quickAddTag() {
+        const idStr = Math.floor(1000 + Math.random() * 9000);
+        const mac = `TAG-${idStr}`;
+        const name = `Asset ${idStr}`;
+        await fetch('/api/tags', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ mac, name, machine: '', category: 'Asset', interval: 500 })
+        });
+        this.pollData();
+    },
+
+    async updateTagField(mac, field, val) {
+        let tag = this.state.tags.find(t => t.mac === mac);
+        if(!tag) return;
+        tag[field] = field === 'interval' ? parseInt(val) || 500 : val;
+        await fetch('/api/tags', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ mac: tag.mac, name: tag.name, machine: tag.machine || '', category: tag.category, interval: tag.interval })
+        });
+        this.pollData();
     },
 
     showNodeModal(mac) {

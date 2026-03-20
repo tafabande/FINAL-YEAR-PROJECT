@@ -36,30 +36,34 @@ def simulate_movement():
     # Tags move in a circle
     angle = 0.0
     while True:
-        angle += 0.4
-        
-        for t_idx, tag in enumerate(TAGS):
-            # Calculate fake true position
-            cx, cy = 50, 50
-            radius = 30 if t_idx == 0 else 15
-            speed_mult = 1 if t_idx == 0 else -1.5
+        try:
+            angle += 0.4
             
-            true_x = cx + radius * math.cos(angle * speed_mult)
-            true_y = cy + radius * math.sin(angle * speed_mult)
-            
-            # Send RSSI to each node based on distance
-            for node in NODES:
-                dist = math.sqrt((node["x"] - true_x)**2 + (node["y"] - true_y)**2)
-                # Max RSSI is around -30 (close), min is -90 (far)
-                rssi = int(max(-95, min(-30, -30 - (dist * 0.8))) + random.uniform(-5, 5))
+            for t_idx, tag in enumerate(TAGS):
+                # Calculate fake true position
+                cx, cy = 50, 50
+                radius = 30 if t_idx == 0 else 15
+                speed_mult = 1 if t_idx == 0 else -1.5
                 
-                requests.post(f"{SERVER_URL}/api/telemetry", json={
-                    "node_mac": node["mac"],
-                    "tag_mac": tag["mac"],
-                    "rssi": rssi
-                })
-        
-        time.sleep(2)
+                true_x = cx + radius * math.cos(angle * speed_mult)
+                true_y = cy + radius * math.sin(angle * speed_mult)
+                
+                # Send RSSI to each node based on distance
+                for node in NODES:
+                    dist = math.sqrt((node["x"] - true_x)**2 + (node["y"] - true_y)**2)
+                    # Max RSSI is around -30 (close), min is -90 (far)
+                    rssi = int(max(-95, min(-30, -30 - (dist * 0.8))) + random.uniform(-5, 5))
+                    
+                    requests.post(f"{SERVER_URL}/api/telemetry", json={
+                        "node_mac": node["mac"],
+                        "tag_mac": tag["mac"],
+                        "rssi": rssi
+                    })
+            
+            time.sleep(2)
+        except requests.exceptions.ConnectionError:
+            print("Server not available, retrying...")
+            time.sleep(5)
 
 if __name__ == '__main__':
     time.sleep(2) # wait for server to start
