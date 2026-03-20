@@ -19,7 +19,7 @@ TAGS = [
 def setup_nodes():
     print("Registering nodes...")
     for node in NODES:
-        res = requests.post(f"{SERVER_URL}/api/nodes", json={
+        res = requests.post(f"{SERVER_URL}/api/nodes", headers={"X-API-Key": "admin"}, json={
             "mac": node["mac"], "name": node["name"], "mode": "esp32", "x": node["x"], "y": node["y"]
         })
         print(f"Node {node['name']}: {res.status_code}")
@@ -27,7 +27,7 @@ def setup_nodes():
 def setup_tags():
     print("Registering tags (names)...")
     for tag in TAGS:
-        requests.post(f"{SERVER_URL}/api/tags", json={
+        requests.post(f"{SERVER_URL}/api/tags", headers={"X-API-Key": "admin"}, json={
             "mac": tag["mac"], "name": tag["name"]
         })
 
@@ -54,7 +54,7 @@ def simulate_movement():
                     # Max RSSI is around -30 (close), min is -90 (far)
                     rssi = int(max(-95, min(-30, -30 - (dist * 0.8))) + random.uniform(-5, 5))
                     
-                    requests.post(f"{SERVER_URL}/api/telemetry", json={
+                    requests.post(f"{SERVER_URL}/api/telemetry", headers={"X-Network-Key": "SECURE_KEY_123"}, json={
                         "node_mac": node["mac"],
                         "tag_mac": tag["mac"],
                         "rssi": rssi

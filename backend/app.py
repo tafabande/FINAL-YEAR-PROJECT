@@ -8,6 +8,42 @@ app = Flask(__name__, static_folder='../frontend', static_url_path='/')
 def index():
     return app.send_static_file('index.html')
 
+@app.before_request
+def require_api_key():
+    if request.path.startswith('/api/') and request.path not in ['/api/telemetry', '/api/auth']:
+        if request.method == 'OPTIONS':
+            return Response(status=200)
+        token = request.headers.get('X-API-Key')
+        if not token:
+            return jsonify({"error": "Unauthorized"}), 401
+        try:
+            import base64
+            decoded = base64.b64decode(token).decode('utf-8')
+            username, password = decoded.split(':', 1)
+        except Exception:
+            return jsonify({"error": "Unauthorized"}), 401
+            
+        conn = models.get_db()
+        user = conn.execute("SELECT * FROM users WHERE username=? AND password=?", (username, password)).fetchone()
+        if not user:
+            return jsonify({"error": "Unauthorized"}), 401
+            
+        if user['role'] == 'ordinary' and request.method != 'GET':
+            return jsonify({"error": "Forbidden"}), 403
+
+@app.route('/api/auth', methods=['POST'])
+def check_auth():
+    data = request.json
+    username = data.get('username', '')
+    password = data.get('password', '')
+    conn = models.get_db()
+    user = conn.execute("SELECT * FROM users WHERE username=? AND password=?", (username, password)).fetchone()
+    if user:
+        import base64
+        token = base64.b64encode(f"{username}:{password}".encode('utf-8')).decode('utf-8')
+        return jsonify({"status": "ok", "token": token, "role": user['role']}), 200
+    return jsonify({"error": "Unauthorized: Access Denied"}), 401
+
 @app.route('/api/settings', methods=['GET', 'POST'])
 def manage_settings():
     conn = models.get_db()
@@ -82,12 +118,16 @@ def manage_tags():
 
 @app.route('/api/telemetry', methods=['POST'])
 def ingest_telemetry():
+    conn = models.get_db()
+    net_key = request.headers.get('X-Network-Key')
+    correct_key = conn.execute("SELECT value FROM system_config WHERE key='network_key'").fetchone()
+    if not correct_key or net_key != correct_key['value']:
+        return jsonify({"error": "Unauthorized"}), 401
+
     data = request.json
     node_mac = data.get('node_mac')
     tag_mac = data.get('tag_mac')
     rssi = data.get('rssi')
-    
-    conn = models.get_db()
     
     tag = conn.execute('SELECT * FROM tags WHERE mac = ?', (tag_mac,)).fetchone()
     if not tag:

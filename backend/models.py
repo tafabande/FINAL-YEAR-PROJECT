@@ -23,6 +23,19 @@ def init_db():
         cursor.execute("INSERT OR IGNORE INTO system_config (key, value) VALUES ('local_ip', '192.168.1.100')")
         cursor.execute("INSERT OR IGNORE INTO system_config (key, value) VALUES ('host_name', 'TrackerProServer')")
         cursor.execute("INSERT OR IGNORE INTO system_config (key, value) VALUES ('global_mode', 'esp32')")
+        cursor.execute("INSERT OR IGNORE INTO system_config (key, value) VALUES ('network_key', 'SECURE_KEY_123')")
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                password TEXT NOT NULL,
+                role TEXT NOT NULL DEFAULT 'ordinary'
+            )
+        ''')
+        cursor.execute("INSERT OR IGNORE INTO users (username, password, role) VALUES ('admin', 'admin0', 'admin')")
+        cursor.execute("INSERT OR IGNORE INTO users (username, password, role) VALUES ('ordinary', 'ordinary', 'ordinary')")
+
         
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS tags (

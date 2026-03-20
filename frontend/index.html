@@ -36,34 +36,34 @@
     <link rel="stylesheet" href="lib/material-icons/material-icons.css">
     <link rel="stylesheet" href="css/style.css">
 </head>
-<body class="bg-darkBg text-slate-300 font-sans h-screen flex flex-col md:flex-row overflow-hidden selection:bg-accent selection:text-white">
+<body class="bg-primary text-secondary font-sans h-screen flex flex-col md:flex-row overflow-hidden selection:bg-accent selection:text-white perspective-container">
     <!-- Sidebar -->
-    <aside class="w-full md:w-64 bg-cardBg border-b md:border-b-0 md:border-r border-slate-700 flex flex-row md:flex-col z-20 shadow-2xl shrink-0 overflow-x-auto md:overflow-visible">
-        <div class="px-4 py-4 md:px-6 md:py-8 border-r md:border-r-0 md:border-b border-slate-700 shrink-0 flex items-center md:items-start md:flex-col relative relative">
-            <h1 class="text-xl md:text-2xl font-bold text-white tracking-tight flex items-center gap-2">
-                <div class="w-3 h-3 md:w-4 md:h-4 rounded-full bg-accent animate-pulse shrink-0"></div>
+    <aside class="w-full md:w-64 bg-secondary border-b md:border-b-0 md:border-r border-border flex flex-row md:flex-col z-20 shadow-2xl shrink-0 overflow-x-auto md:overflow-visible preserve-3d">
+        <div class="px-4 py-4 md:px-6 md:py-8 border-r md:border-r-0 md:border-b border-border shrink-0 flex items-center md:items-start md:flex-col relative preserve-3d">
+            <h1 class="text-xl md:text-2xl font-bold text-primary tracking-tight flex items-center gap-2 animate-float-3d">
+                <div class="w-3 h-3 md:w-4 md:h-4 rounded-full bg-accent animate-pulse-3d shrink-0"></div>
                 <span class="hidden md:inline">Tracker<span class="text-accent">Pro</span></span>
             </h1>
-            <p class="text-[10px] md:text-xs text-slate-500 md:mt-1 hidden md:block w-3/4">Indoor Positioning System</p>
+            <p class="text-[10px] md:text-xs text-secondary md:mt-1 hidden md:block w-3/4 opacity-70">Indoor Positioning System</p>
             
-            <button onclick="app.toggleTheme()" class="absolute right-4 md:right-6 top-4 md:top-8 text-slate-400 hover:text-accent transition-colors group" title="Toggle Theme">
+            <button onclick="app.toggleTheme()" class="absolute right-4 md:right-6 top-4 md:top-8 text-secondary hover:text-accent transition-colors group" title="Toggle Theme">
                 <span class="material-icons-outlined group-hover:rotate-180 transition-transform duration-500" id="theme-icon">dark_mode</span>
             </button>
         </div>
         <nav class="flex-1 px-4 py-2 md:py-6 flex flex-row md:flex-col gap-2 space-y-0 md:space-y-2 overflow-x-auto custom-scrollbar">
-            <button onclick="app.navigate('dashboard')" class="nav-btn shrink-0 md:w-full flex items-center justify-center md:justify-start gap-2 md:gap-3 px-4 py-2 md:py-3 rounded-xl transition-all hover:bg-slate-700/50 hover:text-white active" id="nav-dashboard">
+            <button onclick="app.navigate('dashboard')" class="nav-btn shrink-0 md:w-full flex items-center justify-center md:justify-start gap-2 md:gap-3 px-4 py-2 md:py-3 rounded-xl transition-all hover:bg-tertiary hover:text-primary active" id="nav-dashboard">
                 <span class="material-icons-outlined text-xl">dashboard</span>
                 <span class="whitespace-nowrap text-sm md:text-base font-medium">Live Telemetry</span>
             </button>
-            <button onclick="app.navigate('setup')" class="nav-btn shrink-0 md:w-full flex items-center justify-center md:justify-start gap-2 md:gap-3 px-4 py-2 md:py-3 rounded-xl transition-all hover:bg-slate-700/50 hover:text-white" id="nav-setup">
+            <button onclick="app.navigate('setup')" class="nav-btn shrink-0 md:w-full flex items-center justify-center md:justify-start gap-2 md:gap-3 px-4 py-2 md:py-3 rounded-xl transition-all hover:bg-tertiary hover:text-primary" id="nav-setup">
                 <span class="material-icons-outlined text-xl">settings</span>
                 <span class="whitespace-nowrap text-sm md:text-base font-medium">Config Setup</span>
             </button>
-            <button onclick="app.navigate('beta')" class="nav-btn shrink-0 md:w-full flex items-center justify-center md:justify-start gap-2 md:gap-3 px-4 py-2 md:py-3 rounded-xl transition-all hover:bg-slate-700/50 hover:text-white" id="nav-beta">
+            <button onclick="app.navigate('beta')" class="nav-btn shrink-0 md:w-full flex items-center justify-center md:justify-start gap-2 md:gap-3 px-4 py-2 md:py-3 rounded-xl transition-all hover:bg-tertiary hover:text-primary" id="nav-beta">
                 <span class="material-icons-outlined text-xl text-purple-400">science</span>
                 <span class="whitespace-nowrap text-sm md:text-base font-medium">Beta Labs</span>
             </button>
-            <button onclick="app.navigate('guide')" class="nav-btn shrink-0 md:w-full flex items-center justify-center md:justify-start gap-2 md:gap-3 px-4 py-2 md:py-3 rounded-xl transition-all hover:bg-slate-700/50 hover:text-white" id="nav-guide">
+            <button onclick="app.navigate('guide')" class="nav-btn shrink-0 md:w-full flex items-center justify-center md:justify-start gap-2 md:gap-3 px-4 py-2 md:py-3 rounded-xl transition-all hover:bg-tertiary hover:text-primary" id="nav-guide">
                 <span class="material-icons-outlined text-xl text-yellow-400">help_outline</span>
                 <span class="whitespace-nowrap text-sm md:text-base font-medium">User Guide</span>
             </button>
@@ -78,86 +78,86 @@
             
             <!-- Node Locator FAB -->
             <div class="absolute bottom-8 right-8 z-50 flex flex-col items-end group">
-                <div id="node-list-popover" class="hidden flex-col gap-2 mb-4 bg-slate-800 border border-slate-700 p-3 rounded-xl shadow-2xl origin-bottom transition-all max-h-64 overflow-y-auto custom-scrollbar w-48 shrink-0">
-                    <p class="text-[10px] text-slate-400 font-bold uppercase mb-1 border-b border-slate-700 pb-1 flex items-center gap-1"><span class="material-icons-outlined text-sm">explore</span> Locate Anchors</p>
+                <div id="node-list-popover" class="hidden flex-col gap-2 mb-4 bg-secondary border border-border p-3 rounded-xl shadow-2xl origin-bottom transition-all max-h-64 overflow-y-auto custom-scrollbar w-48 shrink-0">
+                    <p class="text-[10px] text-secondary font-bold uppercase mb-1 border-b border-border pb-1 flex items-center gap-1"><span class="material-icons-outlined text-sm">explore</span> Locate Anchors</p>
                     <div id="fab-node-list" class="flex flex-col gap-1"></div>
                 </div>
-                <button onclick="app.toggleNodeFab()" class="w-14 h-14 bg-accent hover:bg-sky-400 text-slate-900 rounded-full shadow-[0_0_20px_rgba(56,189,248,0.4)] hover:shadow-[0_0_25px_rgba(56,189,248,0.6)] hover:-translate-y-1 flex items-center justify-center transition-all group shrink-0" title="Locate Nodes">
+                <button onclick="app.toggleNodeFab()" class="w-14 h-14 bg-accent hover:bg-sky-400 text-white rounded-full shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1)] hover:shadow-[0_15px_25px_-5px_rgba(0,0,0,0.2)] hover:-translate-y-1 flex items-center justify-center transition-all group shrink-0" title="Locate Nodes">
                     <span class="material-icons-outlined text-2xl group-hover:rotate-90 transition-transform duration-300">my_location</span>
                 </button>
             </div>
 
             <header class="mb-6 flex flex-col xl:flex-row justify-between xl:items-end gap-4">
                 <div>
-                    <h2 class="text-2xl md:text-3xl font-bold text-white flex items-center gap-3 group">
+                    <h2 class="text-2xl md:text-3xl font-bold text-primary flex items-center gap-3 group">
                         <div class="w-3 h-3 md:w-4 md:h-4 rounded-full bg-alert shadow-[0_0_15px_rgba(244,63,94,0.6)] animate-pulse group-hover:scale-125 transition-transform"></div>
                          Live Tracking Overview
                     </h2>
                 </div>
                 <div class="text-left xl:text-right flex flex-col md:flex-row items-start md:items-center gap-4">
                     <div class="flex flex-wrap gap-2 mr-2">
-                        <button onclick="app.exportLogs('rssi')" class="px-3 py-1.5 bg-slate-800/80 hover:bg-slate-700 hover:shadow-lg hover:-translate-y-0.5 text-green-400 font-medium text-xs rounded border border-slate-700 transition-all flex items-center gap-2">
+                        <button onclick="app.exportLogs('rssi')" class="px-3 py-1.5 bg-secondary hover:bg-tertiary hover:shadow-lg hover:-translate-y-0.5 text-green-500 font-medium text-xs rounded border border-border transition-all flex items-center gap-2">
                             <span class="material-icons-outlined text-sm">download</span>
                             Export RSSI Data
                         </button>
-                        <button onclick="app.exportLogs('positions')" class="px-3 py-1.5 bg-slate-800/80 hover:bg-slate-700 hover:shadow-lg hover:-translate-y-0.5 text-accent font-medium text-xs rounded border border-slate-700 transition-all flex items-center gap-2">
+                        <button onclick="app.exportLogs('positions')" class="px-3 py-1.5 bg-secondary hover:bg-tertiary hover:shadow-lg hover:-translate-y-0.5 text-accent font-medium text-xs rounded border border-border transition-all flex items-center gap-2">
                             <span class="material-icons-outlined text-sm">download</span>
                             Export Pos Track
                         </button>
                     </div>
                     <div class="flex items-center gap-3">
-                        <p class="text-xs md:text-sm text-slate-400">Update: <span id="war-last-update" class="text-white font-mono">--:--:--</span></p>
-                        <p class="text-[10px] md:text-xs font-medium text-accent uppercase bg-slate-800 px-2 py-1 rounded inline-block border border-slate-700">Mode: <span id="war-active-mode">Loading...</span></p>
+                        <p class="text-xs md:text-sm text-secondary">Update: <span id="war-last-update" class="text-primary font-mono">--:--:--</span></p>
+                        <p class="text-[10px] md:text-xs font-medium text-accent uppercase bg-secondary px-2 py-1 rounded inline-block border border-border">Mode: <span id="war-active-mode">Loading...</span></p>
                     </div>
                 </div>
             </header>
             
             <!-- Quick Metrics Grid -->
             <div class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3 md:gap-4 mb-6">
-                <div class="glass-card p-4 rounded-xl border-l-[3px] border-slate-600 hover:-translate-y-1 hover:shadow-lg transition-all duration-300 animate-slide-up stagger-1">
-                    <p class="text-[10px] md:text-xs text-slate-400 uppercase font-bold tracking-wider">Total Tags</p>
-                    <h3 class="text-xl md:text-2xl font-black text-white" id="war-total-tags">0</h3>
+                <div class="glass-card p-4 rounded-xl border-l-[3px] border-accent hover:-translate-y-1 hover:shadow-lg transition-all duration-300 animate-slide-up stagger-1">
+                    <p class="text-[10px] md:text-xs text-secondary uppercase font-bold tracking-wider">Total Tags</p>
+                    <h3 class="text-xl md:text-2xl font-black text-primary" id="war-total-tags">0</h3>
                 </div>
-                <div class="glass-card p-4 rounded-xl border-l-[3px] border-slate-600 hover:-translate-y-1 hover:shadow-lg transition-all duration-300 animate-slide-up stagger-2">
-                    <p class="text-[10px] md:text-xs text-slate-400 uppercase font-bold tracking-wider">Total Nodes</p>
-                    <h3 class="text-xl md:text-2xl font-black text-white" id="war-total-nodes">0</h3>
+                <div class="glass-card p-4 rounded-xl border-l-[3px] border-slate-400 hover:-translate-y-1 hover:shadow-lg transition-all duration-300 animate-slide-up stagger-2">
+                    <p class="text-[10px] md:text-xs text-secondary uppercase font-bold tracking-wider">Total Nodes</p>
+                    <h3 class="text-xl md:text-2xl font-black text-primary" id="war-total-nodes">0</h3>
                 </div>
                 <div class="glass-card p-4 rounded-xl border-l-[3px] border-green-500 hover:-translate-y-1 hover:shadow-lg transition-all duration-300 animate-slide-up stagger-3">
-                    <p class="text-[10px] md:text-xs text-slate-400 uppercase font-bold tracking-wider">Nodes Online</p>
-                    <h3 class="text-xl md:text-2xl font-black text-white" id="war-nodes-online">0</h3>
+                    <p class="text-[10px] md:text-xs text-secondary uppercase font-bold tracking-wider">Nodes Online</p>
+                    <h3 class="text-xl md:text-2xl font-black text-green-500" id="war-nodes-online">0</h3>
                 </div>
                 <div class="glass-card p-4 rounded-xl border-l-[3px] border-alert hover:-translate-y-1 hover:shadow-lg transition-all duration-300 animate-slide-up stagger-4">
-                    <p class="text-[10px] md:text-xs text-slate-400 uppercase font-bold tracking-wider">Nodes Offline</p>
-                    <h3 class="text-xl md:text-2xl font-black text-white" id="war-nodes-offline">0</h3>
+                    <p class="text-[10px] md:text-xs text-secondary uppercase font-bold tracking-wider">Nodes Offline</p>
+                    <h3 class="text-xl md:text-2xl font-black text-alert" id="war-nodes-offline">0</h3>
                 </div>
                 <div class="glass-card p-4 rounded-xl border-l-[3px] border-accent hover:-translate-y-1 hover:shadow-lg transition-all duration-300 animate-slide-up stagger-5">
-                    <p class="text-[10px] md:text-xs text-slate-400 uppercase font-bold tracking-wider">Tags Active</p>
-                    <h3 class="text-xl md:text-2xl font-black text-white" id="war-tags-active">0</h3>
+                    <p class="text-[10px] md:text-xs text-secondary uppercase font-bold tracking-wider">Tags Active</p>
+                    <h3 class="text-xl md:text-2xl font-black text-accent" id="war-tags-active">0</h3>
                 </div>
                 <div class="glass-card p-4 rounded-xl border-l-[3px] border-yellow-500 hover:-translate-y-1 hover:shadow-lg transition-all duration-300 animate-slide-up stagger-6">
-                    <p class="text-[10px] md:text-xs text-slate-400 uppercase font-bold tracking-wider">Low Confidence</p>
-                    <h3 class="text-xl md:text-2xl font-black text-white" id="war-tags-low-conf">0</h3>
+                    <p class="text-[10px] md:text-xs text-secondary uppercase font-bold tracking-wider">Low Confidence</p>
+                    <h3 class="text-xl md:text-2xl font-black text-yellow-500" id="war-tags-low-conf">0</h3>
                 </div>
                 <div class="glass-card p-4 rounded-xl border-l-[3px] border-purple-500 hover:-translate-y-1 hover:shadow-lg transition-all duration-300 animate-slide-up stagger-7">
-                    <p class="text-[10px] md:text-xs text-slate-400 uppercase font-bold tracking-wider">System Conf</p>
-                    <h3 class="text-xl md:text-2xl font-black text-white" id="war-avg-conf">0%</h3>
+                    <p class="text-[10px] md:text-xs text-secondary uppercase font-bold tracking-wider">System Conf</p>
+                    <h3 class="text-xl md:text-2xl font-black text-purple-500" id="war-avg-conf">0%</h3>
                 </div>
             </div>
 
             <!-- Middle Section: Map & Activity -->
             <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6">
                 <!-- Mini Map -->
-                <div class="glass-card rounded-xl flex flex-col xl:col-span-2 overflow-hidden border border-slate-700/50 hover:border-slate-500/80 transition-colors duration-500 relative group">
-                    <div class="px-4 py-3 bg-slate-800/80 backdrop-blur-md border-b border-slate-700 flex justify-between items-center relative z-10 w-full pointer-events-none">
-                        <h3 class="text-sm font-semibold text-white">Live Floor Plan Layout</h3>
+                <div class="glass-card rounded-xl flex flex-col xl:col-span-2 overflow-hidden border border-border hover:border-accent transition-colors duration-500 relative group">
+                    <div class="px-4 py-3 bg-secondary/80 backdrop-blur-md border-b border-border flex justify-between items-center relative z-10 w-full pointer-events-none">
+                        <h3 class="text-sm font-semibold text-primary">Live Floor Plan Layout</h3>
                         <div class="pointer-events-auto flex items-center gap-4">
                             <label class="flex items-center gap-2 cursor-pointer">
-                                <input type="checkbox" id="toggle-nodes" checked class="form-checkbox text-accent rounded bg-slate-800 border-slate-600">
-                                <span class="text-xs text-slate-300">Nodes</span>
+                                <input type="checkbox" id="toggle-nodes" checked class="form-checkbox text-accent rounded bg-secondary border-border">
+                                <span class="text-xs text-secondary">Nodes</span>
                             </label>
                             <label class="flex items-center gap-2 cursor-pointer">
-                                <input type="checkbox" id="toggle-tags" checked class="form-checkbox text-accent rounded bg-slate-800 border-slate-600">
-                                <span class="text-xs text-slate-300">Tags</span>
+                                <input type="checkbox" id="toggle-tags" checked class="form-checkbox text-accent rounded bg-secondary border-border">
+                                <span class="text-xs text-secondary">Tags</span>
                             </label>
                         </div>
                     </div>
@@ -166,8 +166,8 @@
                     </div>
                 </div>
                 <!-- Network Chart -->
-                <div class="glass-card p-4 rounded-xl flex flex-col border border-slate-700/50">
-                    <h3 class="text-sm font-semibold text-white mb-2">Telemetry Volume</h3>
+                <div class="glass-card p-4 rounded-xl flex flex-col border border-border">
+                    <h3 class="text-sm font-semibold text-primary mb-2">Telemetry Volume</h3>
                     <div class="flex-1 relative min-h-[300px]">
                         <canvas id="activityChart"></canvas>
                     </div>
@@ -177,13 +177,13 @@
             <!-- Bottom Section: Tables -->
             <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
                 <!-- Live Tag Tracking Table -->
-                <div class="glass-card rounded-xl overflow-hidden border border-slate-700/50 flex flex-col max-h-[400px]">
-                    <div class="px-4 py-3 bg-slate-800/50 border-b border-slate-700 shrink-0">
-                        <h3 class="text-sm font-semibold text-white">Live Tag Tracking Engine</h3>
+                <div class="glass-card rounded-xl overflow-hidden border border-border flex flex-col max-h-[400px]">
+                    <div class="px-4 py-3 bg-secondary/50 border-b border-border shrink-0">
+                        <h3 class="text-sm font-semibold text-primary">Live Tag Tracking Engine</h3>
                     </div>
                     <div class="overflow-y-auto flex-1 custom-scrollbar">
-                        <table class="w-full text-left text-sm text-slate-300">
-                            <thead class="text-[10px] uppercase bg-slate-900/50 text-slate-500 tracking-wider sticky top-0 p-0 m-0 z-10 backdrop-blur-md">
+                        <table class="w-full text-left text-sm text-secondary">
+                            <thead class="text-[10px] uppercase bg-secondary/80 text-secondary tracking-wider sticky top-0 p-0 m-0 z-10 backdrop-blur-md">
                                 <tr>
                                     <th class="px-4 py-3">Asset Identity</th>
                                     <th class="px-4 py-3">Positioning (X,Y)</th>
@@ -198,13 +198,13 @@
                 </div>
 
                 <!-- Node Health Table -->
-                <div class="glass-card rounded-xl overflow-hidden border border-slate-700/50 flex flex-col max-h-[400px]">
-                    <div class="px-4 py-3 bg-slate-800/50 border-b border-slate-700 shrink-0">
-                        <h3 class="text-sm font-semibold text-white">Receiver Node Health</h3>
+                <div class="glass-card rounded-xl overflow-hidden border border-border flex flex-col max-h-[400px]">
+                    <div class="px-4 py-3 bg-secondary/50 border-b border-border shrink-0">
+                        <h3 class="text-sm font-semibold text-primary">Receiver Node Health</h3>
                     </div>
                     <div class="overflow-y-auto flex-1 custom-scrollbar">
-                        <table class="w-full text-left text-sm text-slate-300">
-                            <thead class="text-[10px] uppercase bg-slate-900/50 text-slate-500 tracking-wider sticky top-0 p-0 m-0 z-10 backdrop-blur-md">
+                        <table class="w-full text-left text-sm text-secondary">
+                            <thead class="text-[10px] uppercase bg-secondary/80 text-secondary tracking-wider sticky top-0 p-0 m-0 z-10 backdrop-blur-md">
                                 <tr>
                                     <th class="px-4 py-3">Node Identity</th>
                                     <th class="px-4 py-3">Role & Mode</th>
@@ -222,14 +222,14 @@
         <!-- SETUP DASHBOARD VIEW -->
         <div id="view-setup" class="view-section hidden h-full flex flex-col p-8 pb-0 animate-fade-in">
             <header class="mb-6 shrink-0">
-                <h2 class="text-3xl font-bold text-white">System Setup</h2>
-                <p class="text-slate-400 mt-1">Configure networking, hardware bounds, and positional parameters.</p>
+                <h2 class="text-3xl font-bold text-primary">System Setup</h2>
+                <p class="text-secondary mt-1">Configure networking, hardware bounds, and positional parameters.</p>
             </header>
             
-            <div class="flex border-b border-slate-700 mb-6 shrink-0 gap-6 overflow-x-auto">
+            <div class="flex border-b border-border mb-6 shrink-0 gap-6 overflow-x-auto">
                 <button onclick="app.switchSetupTab('hardware')" class="setup-tab active text-accent border-b-2 border-accent pb-3 font-medium whitespace-nowrap">A-C: Nodes & Tags</button>
-                <button onclick="app.switchSetupTab('calibration')" class="setup-tab text-slate-400 hover:text-white pb-3 font-medium whitespace-nowrap">E: Calibration</button>
-                <button onclick="app.switchSetupTab('network')" class="setup-tab text-slate-400 hover:text-white pb-3 font-medium whitespace-nowrap">F: Network</button>
+                <button onclick="app.switchSetupTab('calibration')" class="setup-tab text-secondary hover:text-primary pb-3 font-medium whitespace-nowrap">E: Calibration</button>
+                <button onclick="app.switchSetupTab('network')" class="setup-tab text-secondary hover:text-primary pb-3 font-medium whitespace-nowrap">F: Network</button>
             </div>
 
             <div class="flex-1 overflow-y-auto pb-8 custom-scrollbar">
@@ -237,27 +237,32 @@
                 <!-- HARDWARE TAB (A, B, C, G) -->
                 <div id="setup-hardware" class="setup-pane">
                     
-                    <div class="glass-card p-6 rounded-xl mb-6 flex justify-between items-center max-w-3xl">
+                    <div class="glass-card p-6 rounded-xl mb-6 flex justify-between items-center max-w-3xl border border-border">
                         <div>
-                            <h3 class="text-lg font-semibold text-white">A. Global Mode Selection</h3>
+                            <h3 class="text-lg font-semibold text-primary">A. Global Mode Selection</h3>
                         </div>
-                        <select id="global-mode" class="bg-slate-800 border border-slate-700 text-white rounded-lg px-4 py-2" onchange="app.saveGlobalMode(this.value)">
+                        <select id="global-mode" class="bg-secondary border border-border text-primary rounded-lg px-4 py-2" onchange="app.saveGlobalMode(this.value)">
                             <option value="esp32">ESP32 Base Architecture</option>
                             <option value="pi">Raspberry Pi BLE Architecture</option>
                         </select>
                     </div>
 
                     <!-- B & G: Node Setup -->
-                    <div class="glass-card rounded-xl overflow-hidden mb-6">
-                        <div class="px-6 py-4 flex flex-wrap justify-between items-center bg-slate-800/20 gap-4">
-                            <h3 class="text-lg font-semibold text-white">B. Receiver Nodes</h3>
-                            <button onclick="app.quickAddNode()" class="px-4 py-2 bg-accent hover:bg-sky-400 text-slate-900 text-sm font-bold rounded-lg shadow-lg shadow-accent/20 transition-all flex items-center gap-2">
-                                <span class="material-icons-outlined text-sm">add</span> Quick Add Node
-                            </button>
+                    <div class="glass-card rounded-xl overflow-hidden mb-6 border border-border">
+                        <div class="px-6 py-4 flex flex-wrap justify-between items-center bg-secondary/20 gap-4">
+                            <h3 class="text-lg font-semibold text-primary">B. Receiver Nodes</h3>
+                            <div class="flex gap-2">
+                                <button onclick="app.showNodeModal()" class="px-4 py-2 bg-tertiary hover:bg-slate-400 text-primary text-sm font-bold rounded-lg transition-all flex items-center gap-2">
+                                    <span class="material-icons-outlined text-sm">settings_input_component</span> Register Node
+                                </button>
+                                <button onclick="app.quickAddNode()" class="px-4 py-2 bg-accent hover:bg-sky-400 text-slate-900 text-sm font-bold rounded-lg shadow-lg shadow-accent/20 transition-all flex items-center gap-2">
+                                    <span class="material-icons-outlined text-sm">add</span> Quick Add
+                                </button>
+                            </div>
                         </div>
                         <div class="overflow-x-auto">
-                            <table class="w-full text-left text-sm text-slate-300">
-                                <thead class="text-xs uppercase bg-slate-800/50 text-slate-400 border-b border-slate-700/50">
+                            <table class="w-full text-left text-sm text-secondary">
+                                <thead class="text-xs uppercase bg-secondary/50 text-secondary border-b border-border">
                                     <tr>
                                         <th class="px-6 py-3">Name</th>
                                         <th class="px-6 py-3">MAC / Role / Mobility</th>
@@ -273,16 +278,21 @@
                     </div>
 
                     <!-- C & G: Tag Setup -->
-                    <div class="glass-card rounded-xl overflow-hidden">
-                        <div class="px-6 py-4 flex flex-wrap justify-between items-center bg-slate-800/20 gap-4">
-                            <h3 class="text-lg font-semibold text-white">C. Asset Tags</h3>
-                            <button onclick="app.quickAddTag()" class="px-4 py-2 bg-green-500 hover:bg-green-400 text-slate-900 text-sm font-bold rounded-lg shadow-lg shadow-green-500/20 transition-all flex items-center gap-2">
-                                <span class="material-icons-outlined text-sm">add</span> Quick Add Tag
-                            </button>
+                    <div class="glass-card rounded-xl overflow-hidden border border-border">
+                        <div class="px-6 py-4 flex flex-wrap justify-between items-center bg-secondary/20 gap-4">
+                            <h3 class="text-lg font-semibold text-primary">C. Asset Tags</h3>
+                            <div class="flex gap-2">
+                                <button onclick="app.showTagModal()" class="px-4 py-2 bg-tertiary hover:bg-slate-400 text-primary text-sm font-bold rounded-lg transition-all flex items-center gap-2">
+                                    <span class="material-icons-outlined text-sm">label</span> Register Tag
+                                </button>
+                                <button onclick="app.quickAddTag()" class="px-4 py-2 bg-green-500 hover:bg-green-400 text-slate-900 text-sm font-bold rounded-lg shadow-lg shadow-green-500/20 transition-all flex items-center gap-2">
+                                    <span class="material-icons-outlined text-sm">add</span> Quick Add
+                                </button>
+                            </div>
                         </div>
                         <div class="overflow-x-auto">
-                            <table class="w-full text-left text-sm text-slate-300">
-                                <thead class="text-xs uppercase bg-slate-800/50 text-slate-400 border-b border-slate-700/50">
+                            <table class="w-full text-left text-sm text-secondary">
+                                <thead class="text-xs uppercase bg-secondary/50 text-secondary border-b border-border">
                                     <tr>
                                         <th class="px-6 py-3">Tag/Machine Bind</th>
                                         <th class="px-6 py-3">Category</th>
@@ -299,16 +309,16 @@
                 
                 <!-- CALIBRATION TAB (E) -->
                 <div id="setup-calibration" class="setup-pane hidden">
-                    <div class="glass-card p-6 rounded-xl max-w-xl">
-                        <h3 class="text-lg font-semibold text-white mb-4">E. Global Environment Calibration</h3>
+                    <div class="glass-card p-6 rounded-xl max-w-xl border border-border">
+                        <h3 class="text-lg font-semibold text-primary mb-4">E. Global Environment Calibration</h3>
                         <form id="calibration-form" onsubmit="app.saveSettings(event)" class="space-y-4">
                             <div>
-                                <label class="block text-sm font-medium text-slate-400 mb-1">RSSI at 1 meter</label>
-                                <input type="number" id="set-rssi-1m" value="-55" class="w-full bg-slate-800 border border-slate-700 text-white rounded-lg px-4 py-2">
+                                <label class="block text-sm font-medium text-secondary mb-1">RSSI at 1 meter</label>
+                                <input type="number" id="set-rssi-1m" value="-55" class="w-full bg-secondary border border-border text-primary rounded-lg px-4 py-2">
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-slate-400 mb-1">Path-Loss Exponent</label>
-                                <input type="number" step="0.1" id="set-path-loss" value="2.5" class="w-full bg-slate-800 border border-slate-700 text-white rounded-lg px-4 py-2">
+                                <label class="block text-sm font-medium text-secondary mb-1">Path-Loss Exponent</label>
+                                <input type="number" step="0.1" id="set-path-loss" value="2.5" class="w-full bg-secondary border border-border text-primary rounded-lg px-4 py-2">
                             </div>
                             <div class="pt-2">
                                 <button type="submit" class="px-4 py-2 bg-accent hover:bg-sky-400 text-slate-900 font-bold rounded-lg shadow-lg">Save Variables</button>
@@ -320,20 +330,20 @@
                 <!-- NETWORK TAB (F) -->
                 <div id="setup-network" class="setup-pane hidden">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl">
-                        <div class="glass-card p-6 rounded-xl">
-                            <h3 class="text-lg font-semibold text-white mb-4">F. Network Settings</h3>
+                        <div class="glass-card p-6 rounded-xl border border-border">
+                            <h3 class="text-lg font-semibold text-primary mb-4">F. Network Settings</h3>
                             <form id="network-form" onsubmit="app.saveSettings(event)" class="space-y-4">
                                 <div>
-                                    <label class="block text-sm font-medium text-slate-400 mb-1">Server Host IP (LAN or Tailscale VPN)</label>
-                                    <input type="text" id="set-local-ip" value="192.168.1.100" placeholder="e.g 100.x.y.z" class="w-full bg-slate-800 border border-slate-700 text-white rounded-lg px-4 py-2 text-sm">
+                                    <label class="block text-sm font-medium text-secondary mb-1">Server Host IP (LAN or Tailscale VPN)</label>
+                                    <input type="text" id="set-local-ip" value="192.168.1.100" placeholder="e.g 100.x.y.z" class="w-full bg-secondary border border-border text-primary rounded-lg px-4 py-2 text-sm">
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-slate-400 mb-1">Host Name</label>
-                                    <input type="text" id="set-host-name" value="TrackerProServer" class="w-full bg-slate-800 border border-slate-700 text-white rounded-lg px-4 py-2 text-sm">
+                                    <label class="block text-sm font-medium text-secondary mb-1">Host Name</label>
+                                    <input type="text" id="set-host-name" value="TrackerProServer" class="w-full bg-secondary border border-border text-primary rounded-lg px-4 py-2 text-sm">
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-slate-400 mb-1">Custom Floor Plan (URL or Local Image)</label>
-                                    <input type="text" id="set-map-url" value="https://via.placeholder.com/1000x1000/1e293b/38bdf8?text=Indoor+Floorplan+Layout" class="w-full bg-slate-800 border border-slate-700 text-white rounded-lg px-4 py-2 text-sm">
+                                    <label class="block text-sm font-medium text-secondary mb-1">Custom Floor Plan (URL or Local Image)</label>
+                                    <input type="text" id="set-map-url" value="https://via.placeholder.com/1000x1000/1e293b/38bdf8?text=Indoor+Floorplan+Layout" class="w-full bg-secondary border border-border text-primary rounded-lg px-4 py-2 text-sm">
                                 </div>
                                 <div class="flex items-center gap-2 mt-4 opacity-50 cursor-not-allowed">
                                     <button type="submit" class="px-4 py-2 bg-accent hover:bg-sky-400 text-slate-900 font-bold rounded-lg shadow-lg">Save Network Specs</button>
@@ -341,21 +351,21 @@
                             </form>
                         </div>
 
-                        <div class="glass-card p-6 rounded-xl flex flex-col justify-between">
+                        <div class="glass-card p-6 rounded-xl flex flex-col justify-between border border-border">
                             <div>
-                                <h3 class="text-lg font-semibold text-white mb-2">G. Appearance & Theme</h3>
-                                <p class="text-xs text-slate-400 mb-6">Choose between light and dark modes for the dashboard interface.</p>
+                                <h3 class="text-lg font-semibold text-primary mb-2">G. Appearance & Theme</h3>
+                                <p class="text-xs text-secondary mb-6">Choose between light and dark modes for the dashboard interface.</p>
                             </div>
                             
-                            <button onclick="app.toggleTheme()" class="w-full flex items-center justify-between px-6 py-4 bg-slate-800/80 hover:bg-slate-700 rounded-xl border border-slate-700 transition-all group" id="theme-toggle">
+                            <button onclick="app.toggleTheme()" class="w-full flex items-center justify-between px-6 py-4 bg-secondary/80 hover:bg-tertiary rounded-xl border border-border transition-all group" id="theme-toggle">
                                 <div class="flex items-center gap-4">
-                                    <span class="material-icons-outlined text-2xl text-accent group-hover:scale-110 transition-transform" id="theme-icon">dark_mode</span>
+                                    <span class="material-icons-outlined text-2xl text-accent group-hover:scale-110 transition-transform" id="theme-icon-btn">dark_mode</span>
                                     <div class="text-left">
-                                        <p class="text-sm font-bold text-white" id="theme-text">Dark Mode</p>
-                                        <p class="text-[10px] text-slate-500">Click to switch theme</p>
+                                        <p class="text-sm font-bold text-primary" id="theme-text">Dark Mode</p>
+                                        <p class="text-[10px] text-secondary">Click to switch theme</p>
                                     </div>
                                 </div>
-                                <span class="material-icons-outlined text-slate-600">sync_alt</span>
+                                <span class="material-icons-outlined text-secondary">sync_alt</span>
                             </button>
                         </div>
                     </div>
@@ -568,6 +578,33 @@
                     <button onclick="app.hideModal('config-modal')" class="px-4 py-2 bg-accent text-slate-900 font-bold rounded-lg shadow-lg text-sm">Close Package</button>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Modal: Login -->
+    <div id="login-modal" style="z-index: 9999; background-color: rgba(15, 23, 42, 0.95);" class="fixed inset-0 hidden flex flex-col items-center justify-center">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl md:text-5xl font-bold text-white tracking-tight flex items-center justify-center gap-3">
+                <div class="w-4 h-4 md:w-6 md:h-6 rounded-full bg-accent animate-pulse shrink-0"></div>
+                Tracker<span class="text-accent">Pro</span>
+            </h1>
+            <p class="text-sm md:text-base text-slate-400 mt-2">Secure Dashboard Access</p>
+        </div>
+        <div id="login-card" style="background-color: #1e293b;" class="border border-slate-700 shadow-2xl rounded-2xl w-full max-w-sm p-8 transition-all duration-300">
+            <form onsubmit="app.login(event)" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-400 mb-2">Access Username</label>
+                    <input type="text" id="login-username" required placeholder="Enter username..." class="w-full bg-slate-800 border border-slate-600 focus:border-accent focus:ring-1 focus:ring-accent outline-none text-white rounded-lg px-4 py-3 transition-all mb-4" autofocus>
+                    
+                    <label class="block text-sm font-medium text-slate-400 mb-2">Access Password</label>
+                    <input type="password" id="login-password" required placeholder="Enter password..." class="w-full bg-slate-800 border border-slate-600 focus:border-accent focus:ring-1 focus:ring-accent outline-none text-white rounded-lg px-4 py-3 transition-all">
+                </div>
+                <div id="login-error" class="hidden text-alert text-xs font-medium text-center bg-alert opacity-20 py-2 rounded">Invalid credentials. Please try again.</div>
+                <button id="unlock-btn" type="submit" class="w-full py-3 bg-accent hover:bg-sky-400 text-slate-900 font-bold rounded-lg shadow-lg transition-all text-sm uppercase tracking-wider flex items-center justify-center gap-2">
+                    <span id="unlock-btn-text">Unlock Dashboard</span>
+                    <span id="unlock-btn-icon" class="material-icons-outlined text-lg">lock_open</span>
+                </button>
+            </form>
         </div>
     </div>
 

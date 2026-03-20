@@ -1,14 +1,143 @@
 const app = {
     state: { nodes: [], tags: [], positions: [], settings: {}, chartInstance: null },
+    originalFetch: window.fetch,
 
     init() {
         this.initTheme();
+        
+        window.fetch = async (...args) => {
+            let [resource, config] = args;
+            config = config || {};
+            config.headers = config.headers || {};
+            const token = localStorage.getItem('tracker_token');
+            if(token && !config.headers['X-API-Key'] && typeof resource === 'string' && resource.includes('/api/')) {
+                config.headers['X-API-Key'] = token;
+            }
+            try {
+                const response = await this.originalFetch.call(window, resource, config);
+                if(response.status === 401 && typeof resource === 'string' && resource.includes('/api/') && !resource.includes('/api/auth') && !resource.includes('/api/telemetry')) {
+                    this.showLogin();
+                }
+                return response;
+            } catch (err) {
+                console.error("Fetch interceptor error:", err);
+                throw err;
+            }
+        };
+
+        if(!localStorage.getItem('tracker_token')) {
+            this.showLogin();
+        } else {
+            this.startApp();
+        }
+    },
+
+    startApp() {
+        const role = localStorage.getItem('tracker_role') || 'ordinary';
+        if (role === 'ordinary') {
+            const navSetup = document.getElementById('nav-setup');
+            const navBeta = document.getElementById('nav-beta');
+            const navGuide = document.getElementById('nav-guide');
+            if (navSetup) navSetup.style.display = 'none';
+            if (navBeta) navBeta.style.display = 'none';
+            if (navGuide) navGuide.style.display = 'none';
+        }
+
         this.navigate('dashboard');
         this.initChart();
         this.pollData();
         this.pollSettings();
-        setInterval(() => this.pollData(), 3000);
+        if(this.pollInterval) clearInterval(this.pollInterval);
+        this.pollInterval = setInterval(() => this.pollData(), 3000);
         setTimeout(() => this.initMap(), 500);
+    },
+
+    showLogin() {
+        const modal = document.getElementById('login-modal');
+        const card = document.getElementById('login-card');
+        const btnText = document.getElementById('unlock-btn-text');
+        const btnIcon = document.getElementById('unlock-btn-icon');
+        
+        modal.classList.remove('hidden');
+        card.classList.remove('animate-shake', 'login-card-error', 'animate-success');
+        btnText.innerText = 'Unlock Dashboard';
+        btnIcon.innerText = 'lock_open';
+        btnIcon.classList.remove('animate-spin');
+        
+        document.getElementById('login-username').value = '';
+        document.getElementById('login-password').value = '';
+        document.getElementById('login-username').focus();
+        if(this.pollInterval) clearInterval(this.pollInterval);
+    },
+
+    async login(e) {
+        e.preventDefault();
+        const userInp = document.getElementById('login-username');
+        const pwdInput = document.getElementById('login-password');
+        const username = userInp.value;
+        const pwd = pwdInput.value;
+        const card = document.getElementById('login-card');
+        const error = document.getElementById('login-error');
+        const btnText = document.getElementById('unlock-btn-text');
+        const btnIcon = document.getElementById('unlock-btn-icon');
+
+        if (!username || !pwd) {
+            if (!username) userInp.focus();
+            else pwdInput.focus();
+            return;
+        }
+
+        // Reset states
+        card.classList.remove('animate-shake', 'login-card-error', 'animate-success');
+        error.classList.add('hidden');
+        btnText.innerText = 'Verifying...';
+        btnIcon.innerText = 'sync';
+        btnIcon.classList.add('animate-spin');
+
+        try {
+            const res = await window.fetch('/api/auth', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({username: username, password: pwd})
+            });
+            
+            // Add a small delay for better UX animation
+            await new Promise(r => setTimeout(r, 600));
+
+            const data = await res.json().catch(() => ({}));
+
+            if(res.ok) {
+                localStorage.setItem('tracker_token', data.token);
+                localStorage.setItem('tracker_role', data.role);
+                card.classList.add('animate-success');
+                btnText.innerText = 'Authorized';
+                btnIcon.innerText = 'check_circle';
+                btnIcon.classList.remove('animate-spin');
+                
+                setTimeout(() => {
+                    document.getElementById('login-modal').classList.add('hidden');
+                    document.getElementById('login-error').classList.add('hidden');
+                    pwdInput.value = '';
+                    userInp.value = '';
+                    this.startApp();
+                }, 800);
+            } else {
+                card.classList.add('animate-shake', 'login-card-error');
+                error.innerText = data.error || 'Invalid credentials';
+                error.classList.remove('hidden');
+                btnText.innerText = 'Unlock Dashboard';
+                btnIcon.innerText = 'lock_open';
+                btnIcon.classList.remove('animate-spin');
+                pwdInput.value = '';
+                pwdInput.focus();
+            }
+        } catch(err) {
+            console.error(err);
+            error.innerText = 'Network error: check if server is running.';
+            error.classList.remove('hidden');
+            btnText.innerText = 'Unlock Dashboard';
+            btnIcon.innerText = 'lock_open';
+            btnIcon.classList.remove('animate-spin');
+        }
     },
 
     initTheme() {
@@ -20,19 +149,18 @@ const app = {
         document.documentElement.setAttribute('data-theme', theme);
         localStorage.setItem('theme', theme);
         const icon = document.getElementById('theme-icon');
+        const iconBtn = document.getElementById('theme-icon-btn');
         const text = document.getElementById('theme-text');
         const subtext = text ? text.nextElementSibling : null;
 
         if (theme === 'light') {
-            document.body.classList.remove('bg-darkBg', 'text-slate-300');
-            document.body.classList.add('bg-primary', 'text-primary');
             if (icon) icon.innerText = 'light_mode';
+            if (iconBtn) iconBtn.innerText = 'light_mode';
             if (text) text.innerText = 'Light Mode';
             if (subtext) subtext.innerText = 'Click to switch to Dark Mode';
         } else {
-            document.body.classList.add('bg-darkBg', 'text-slate-300');
-            document.body.classList.remove('bg-primary', 'text-primary');
             if (icon) icon.innerText = 'dark_mode';
+            if (iconBtn) iconBtn.innerText = 'dark_mode';
             if (text) text.innerText = 'Dark Mode';
             if (subtext) subtext.innerText = 'Click to switch to Light Mode';
         }
@@ -50,10 +178,10 @@ const app = {
             popover.classList.remove('hidden');
             const list = document.getElementById('fab-node-list');
             if (this.state.nodes.length === 0) {
-                list.innerHTML = `<p class="text-xs text-slate-500">No anchors found.</p>`;
+                list.innerHTML = `<p class="text-xs text-secondary opacity-50 px-2">No anchors found.</p>`;
             } else {
                 list.innerHTML = this.state.nodes.map(n => 
-                    `<button onclick="app.locateNode(${n.x}, ${n.y}, '${n.name.replace(/'/g, "\\'")}')" class="text-left py-1.5 px-2 text-sm text-slate-300 hover:text-white hover:bg-slate-700/50 rounded transition-colors truncate w-full flex items-center">
+                    `<button onclick="app.locateNode(${n.x}, ${n.y}, '${n.name.replace(/'/g, "\\'")}')" class="text-left py-1.5 px-2 text-sm text-secondary hover:text-primary hover:bg-tertiary rounded transition-colors truncate w-full flex items-center">
                         <span class="material-icons-outlined text-[14px] mr-2 text-accent">pin_drop</span>${n.name}
                     </button>`
                 ).join('');
@@ -77,7 +205,7 @@ const app = {
         setTimeout(() => {
             L.popup({ className: 'custom-node-popup border-0 shadow-lg', autoPan: true, closeButton: false })
                 .setLatLng([y * 10 + 2, x * 10])
-                .setContent(`<div class="bg-slate-800 text-white px-3 py-2 rounded-lg border border-accent shadow-[0_0_15px_rgba(56,189,248,0.3)]"><span class="font-bold text-accent">${name}</span><br><span class="text-[10px] text-slate-400 font-mono">X:${x} Y:${y}</span></div>`)
+                .setContent(`<div class="bg-secondary text-primary px-3 py-2 rounded-lg border border-accent shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1)]"><span class="font-bold text-accent">${name}</span><br><span class="text-[10px] text-secondary font-mono">X:${x} Y:${y}</span></div>`)
                 .openOn(this.map);
         }, 1500);
     },
@@ -88,22 +216,31 @@ const app = {
     },
 
     updateChartTheme(theme) {
-        const textColor = theme === 'light' ? '#0f172a' : '#94a3b8';
+        if (!this.chartInstance) return;
+        const textColor = getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim();
         this.chartInstance.options.scales.y.ticks.color = textColor;
         this.chartInstance.options.scales.x.ticks.color = textColor;
+        if (this.chartInstance.options.scales.y.grid) {
+            this.chartInstance.options.scales.y.grid.color = theme === 'light' ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)';
+        }
         this.chartInstance.update();
     },
 
     updateMapTheme(theme) {
         if (!this.map) return;
         const mapContainer = document.getElementById('leaflet-map');
-        if (theme === 'light') {
-            mapContainer.style.background = '#f1f5f9';
-            if (this.mapOverlay) {
-                // You could swap the overlay here if you have a light version
+        const bgColor = getComputedStyle(document.documentElement).getPropertyValue('--bg-primary').trim();
+        mapContainer.style.background = bgColor;
+        
+        // Update overlay if exists
+        if (this.mapOverlay) {
+            const mapUrl = this.state.settings.map_url || '';
+            if (mapUrl.includes('placeholder.com')) {
+                const color = theme === 'light' ? 'f8fafc' : '1e293b';
+                const accent = '38bdf8';
+                const newUrl = `https://via.placeholder.com/1000x1000/${color}/${accent}?text=Indoor+Floorplan+Layout`;
+                this.mapOverlay.setUrl(newUrl);
             }
-        } else {
-            mapContainer.style.background = '#0f172a';
         }
     },
 
@@ -217,14 +354,14 @@ const app = {
             host_name: document.getElementById('set-host-name').value,
             map_url: document.getElementById('set-map-url').value
         };
-        await fetch('/api/settings', {
+        await window.fetch('/api/settings', {
             method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
         });
         alert("Global configuration saved successfully!");
     },
     
     async saveGlobalMode(mode) {
-        await fetch('/api/settings', {
+        await window.fetch('/api/settings', {
             method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({global_mode: mode})
         });
     },
@@ -232,7 +369,7 @@ const app = {
     async pollData() {
         try {
             const [nodesRes, tagsRes, posRes] = await Promise.all([
-                fetch('/api/nodes'), fetch('/api/tags'), fetch('/api/positions')
+                window.fetch('/api/nodes'), window.fetch('/api/tags'), window.fetch('/api/positions')
             ]);
             this.state.nodes = await nodesRes.json();
             this.state.tags = await tagsRes.json();
@@ -248,7 +385,9 @@ const app = {
             this.updateDashboard();
             this.renderSetupTables();
             this.updateMapMarkers();
-        } catch(e) {}
+        } catch(e) {
+            console.error("pollData failed:", e);
+        }
     },
 
     updateDashboard() {
@@ -364,10 +503,47 @@ const app = {
         });
 
         this.tagLayer.clearLayers();
+        
+        const placed = [];
         this.state.positions.forEach(p => {
+            let lat = p.y * 10;
+            let lng = p.x * 10;
+            
+            // Spiderify logic for overlaps
+            let overlapCount = 0;
+            placed.forEach(pos => {
+                const dist = Math.hypot(pos.lat - lat, pos.lng - lng);
+                if (dist < 20) overlapCount++; // Detect close proximity
+            });
+            
+            if (overlapCount > 0) {
+                const angle = (overlapCount * 55) * (Math.PI / 180);
+                const radius = 20; // 2 meters visual spread
+                lat += Math.sin(angle) * radius;
+                lng += Math.cos(angle) * radius;
+            }
+            placed.push({lat, lng});
+
             const colorClass = p.confidence > 70 ? 'bg-green-400' : (p.confidence > 40 ? 'bg-yellow-400' : 'bg-alert');
-            const icon = L.divIcon({ className: `flex items-center justify-center w-3 h-3 rounded-full ${colorClass} shadow-[0_0_10px_rgba(56,189,248,0.8)] border border-slate-900`, iconSize: [12, 12] });
-            L.marker([p.y * 10, p.x * 10], {icon}).bindTooltip(p.name, {permanent:true, className:'bg-transparent border-0 text-white font-bold text-xs shadow-none', direction: 'bottom', offset: [0,8]}).addTo(this.tagLayer);
+            
+            // Icon mapping
+            let matIcon = 'inventory_2';
+            if (p.category === 'Forklift') matIcon = 'local_shipping';
+            if (p.category === 'Generator') matIcon = 'bolt';
+            if (p.category === 'Pump') matIcon = 'water_drop';
+            if (p.category === 'Trolley') matIcon = 'shopping_cart';
+
+            const iconHtml = `<div class="group flex items-center justify-center w-6 h-6 rounded-full ${colorClass} bg-opacity-90 shadow-[0_0_15px_rgba(0,0,0,0.5)] border-2 border-slate-900 transition-transform"><span class="material-icons-outlined text-[14px] text-slate-900">${matIcon}</span></div>`;
+            
+            const icon = L.divIcon({ className: '', html: iconHtml, iconSize: [24, 24] });
+            
+            const marker = L.marker([lat, lng], {icon, zIndexOffset: 100});
+            marker.bindTooltip(p.name, {permanent:true, className:'bg-slate-900/80 border border-slate-700 text-white font-bold text-[10px] rounded px-2 py-1', direction: 'bottom', offset: [0,8]});
+            
+            // Hover to front
+            marker.on('mouseover', function(e) { this.setZIndexOffset(1000); });
+            marker.on('mouseout', function(e) { this.setZIndexOffset(100); });
+            marker.addTo(this.tagLayer);
         });
     },
 
@@ -442,49 +618,66 @@ const app = {
         const mac = `NODE-${idStr}`;
         const name = `Anchor ${idStr}`;
         const mode = document.getElementById('global-mode').value || 'esp32';
-        await fetch('/api/nodes', {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ mac, name, role: 'anchor', mobility: 'fixed', x: 0, y: 0, mode })
-        });
-        this.pollData();
+        try {
+            const res = await window.fetch('/api/nodes', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ mac, name, role: 'anchor', mobility: 'fixed', x: 0, y: 0, mode })
+            });
+            if (!res.ok) throw new Error('Failed to add node');
+            this.pollData();
+        } catch (e) {
+            console.error(e);
+            alert('Error adding node. Please check your connection.');
+        }
     },
 
     async updateNodeField(mac, field, val) {
         let node = this.state.nodes.find(n => n.mac === mac);
         if(!node) return;
         node[field] = (field === 'x' || field === 'y') ? parseFloat(val) || 0 : val;
-        await fetch('/api/nodes', {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ mac: node.mac, name: node.name, role: node.role, mobility: node.mobility, x: node.x, y: node.y, mode: node.mode })
-        });
-        this.pollData();
+        try {
+            await window.fetch('/api/nodes', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ mac: node.mac, name: node.name, role: node.role, mobility: node.mobility, x: node.x, y: node.y, mode: node.mode })
+            });
+            this.pollData();
+        } catch (e) { console.error(e); }
     },
 
     async quickAddTag() {
         const idStr = Math.floor(1000 + Math.random() * 9000);
         const mac = `TAG-${idStr}`;
         const name = `Asset ${idStr}`;
-        await fetch('/api/tags', {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ mac, name, machine: '', category: 'Asset', interval: 500 })
-        });
-        this.pollData();
+        try {
+            const res = await window.fetch('/api/tags', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ mac, name, machine: '', category: 'Asset', interval: 500 })
+            });
+            if (!res.ok) throw new Error('Failed to add tag');
+            this.pollData();
+        } catch (e) {
+            console.error(e);
+            alert('Error adding tag.');
+        }
     },
 
     async updateTagField(mac, field, val) {
         let tag = this.state.tags.find(t => t.mac === mac);
         if(!tag) return;
         tag[field] = field === 'interval' ? parseInt(val) || 500 : val;
-        await fetch('/api/tags', {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ mac: tag.mac, name: tag.name, machine: tag.machine || '', category: tag.category, interval: tag.interval })
-        });
-        this.pollData();
+        try {
+            await window.fetch('/api/tags', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ mac: tag.mac, name: tag.name, machine: tag.machine || '', category: tag.category, interval: tag.interval })
+            });
+            this.pollData();
+        } catch (e) { console.error(e); }
     },
 
     showNodeModal(mac) {
         let n = this.state.nodes.find(x => x.mac === mac) || { mac: '', name: '', role: 'anchor', mobility: 'fixed', x: 0, y: 0, mode: 'esp32' };
         document.getElementById('node-mac').value = n.mac;
+        document.getElementById('node-mac').readOnly = !!n.mac;
         document.getElementById('node-name').value = n.name;
         document.getElementById('node-role').value = n.role;
         document.getElementById('node-mobility').value = n.mobility;
@@ -496,25 +689,32 @@ const app = {
 
     async submitNode(e) {
         e.preventDefault();
-        await fetch('/api/nodes', {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                mac: document.getElementById('node-mac').value,
-                name: document.getElementById('node-name').value,
-                role: document.getElementById('node-role').value,
-                mobility: document.getElementById('node-mobility').value,
-                x: parseFloat(document.getElementById('node-x').value) || 0,
-                y: parseFloat(document.getElementById('node-y').value) || 0,
-                mode: document.getElementById('node-mode').value
-            })
-        });
-        this.hideModal('node-modal');
-        this.pollData();
+        try {
+            const res = await window.fetch('/api/nodes', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    mac: document.getElementById('node-mac').value,
+                    name: document.getElementById('node-name').value,
+                    role: document.getElementById('node-role').value,
+                    mobility: document.getElementById('node-mobility').value,
+                    x: parseFloat(document.getElementById('node-x').value) || 0,
+                    y: parseFloat(document.getElementById('node-y').value) || 0,
+                    mode: document.getElementById('node-mode').value
+                })
+            });
+            if (!res.ok) throw new Error('Failed to save node');
+            this.hideModal('node-modal');
+            this.pollData();
+        } catch (e) {
+            console.error(e);
+            alert('Error saving node.');
+        }
     },
 
     showTagModal(mac) {
         let t = this.state.tags.find(x => x.mac === mac) || { mac: '', name: '', machine: '', category: 'Asset', interval: 500 };
         document.getElementById('tag-mac').value = t.mac;
+        document.getElementById('tag-mac').readOnly = !!t.mac;
         document.getElementById('tag-name').value = t.name;
         document.getElementById('tag-machine').value = t.machine || '';
         document.getElementById('tag-category').value = t.category;
@@ -524,27 +724,45 @@ const app = {
 
     async submitTag(e) {
         e.preventDefault();
-        await fetch('/api/tags', {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                mac: document.getElementById('tag-mac').value,
-                name: document.getElementById('tag-name').value,
-                machine: document.getElementById('tag-machine').value,
-                category: document.getElementById('tag-category').value,
-                interval: parseInt(document.getElementById('tag-interval').value) || 500
-            })
-        });
-        this.hideModal('tag-modal');
-        this.pollData();
+        try {
+            const res = await window.fetch('/api/tags', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    mac: document.getElementById('tag-mac').value,
+                    name: document.getElementById('tag-name').value,
+                    machine: document.getElementById('tag-machine').value,
+                    category: document.getElementById('tag-category').value,
+                    interval: parseInt(document.getElementById('tag-interval').value) || 500
+                })
+            });
+            if (!res.ok) throw new Error('Failed to save tag');
+            this.hideModal('tag-modal');
+            this.pollData();
+        } catch (e) {
+            console.error(e);
+            alert('Error saving tag.');
+        }
     },
 
     async showNodeConfig(mac) {
-        const res = await fetch(`/api/config/node/${mac}`);
-        this.populateWizard(await res.json());
+        try {
+            const res = await window.fetch(`/api/config/node/${mac}`);
+            if (!res.ok) throw new Error('Failed to fetch config');
+            this.populateWizard(await res.json());
+        } catch (e) {
+            console.error(e);
+            alert('Error fetching node configuration.');
+        }
     },
     async showTagConfig(mac) {
-        const res = await fetch(`/api/config/tag/${mac}`);
-        this.populateWizard(await res.json());
+        try {
+            const res = await window.fetch(`/api/config/tag/${mac}`);
+            if (!res.ok) throw new Error('Failed to fetch config');
+            this.populateWizard(await res.json());
+        } catch (e) {
+            console.error(e);
+            alert('Error fetching tag configuration.');
+        }
     },
 
     populateWizard(data) {

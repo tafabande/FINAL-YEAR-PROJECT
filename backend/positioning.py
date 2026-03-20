@@ -108,7 +108,8 @@ def calculate_all_positions():
             "y": round(final_y, 2),
             "confidence": round(confidence, 1),
             "rssi": round(avg_rssi, 1),
-            "last_seen": tag['last_seen']
+            "last_seen": tag['last_seen'],
+            "category": tag['category']
         })
         
     conn.commit()
