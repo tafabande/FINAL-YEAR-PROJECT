@@ -428,9 +428,12 @@ const app = {
             const [nodesRes, tagsRes, posRes] = await Promise.all([
                 window.fetch('/api/nodes'), window.fetch('/api/tags'), window.fetch('/api/positions')
             ]);
-            this.state.nodes = Array.isArray(await nodesRes.json()) ? await nodesRes.json() : [];
-            this.state.tags = Array.isArray(await tagsRes.json()) ? await tagsRes.json() : [];
-            this.state.positions = Array.isArray(await posRes.json()) ? await posRes.json() : [];
+            const nodesData = await nodesRes.json();
+            const tagsData = await tagsRes.json();
+            const posData = await posRes.json();
+            this.state.nodes = Array.isArray(nodesData) ? nodesData : [];
+            this.state.tags = Array.isArray(tagsData) ? tagsData : [];
+            this.state.positions = Array.isArray(posData) ? posData : [];
             
             // Auto-refresh user list if user is on users view
             const usersView = document.getElementById('view-users');
@@ -950,6 +953,13 @@ const app = {
         } catch (e) {
             console.error('loadUsers error:', e);
         }
+    },
+
+    showFeedback(el, msg, classes) {
+        if (!el) return;
+        el.innerText = msg;
+        el.className = `text-xs font-medium text-center py-2 rounded mb-2 ${classes}`;
+        el.classList.remove('hidden');
     },
 
     async addUser(e) {
