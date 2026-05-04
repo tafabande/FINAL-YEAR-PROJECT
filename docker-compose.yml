@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  backend:
+    build: .
+    container_name: trackerpro_backend
+    ports:
+      - "5000:5000"
+    volumes:
+      - .:/app
+    command: python backend/app.py
+
+  mock_telemetry:
+    build: .
+    container_name: trackerpro_mock_telemetry
+    command: python backend/simulator/mock_telemetry.py
+    volumes:
+      - .:/app
+    depends_on:
+      - backend

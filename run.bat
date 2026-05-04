@@ -1,7 +1,7 @@
 @echo off
-echo Starting Asset Tracker Pro...
-start cmd /k "python backend\app.py"
-timeout /t 3
-echo Starting Mock Telemetry Generator...
-start cmd /k "python backend\mock_telemetry.py"
-echo Done! Open http://127.0.0.1:5000 in your browser to view the dashboard.
+echo Starting TrackerPro via Docker Compose...
+docker-compose up --build -d
+echo.
+echo TrackerPro Services Started!
+echo Open http://localhost:5000 in your browser to view the dashboard.
+pause

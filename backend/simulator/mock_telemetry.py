@@ -3,7 +3,8 @@ import random
 import requests
 import math
 
-SERVER_URL = "http://127.0.0.1:5000"
+import os
+SERVER_URL = os.environ.get("SERVER_URL", "http://backend:5000")
 
 NODES = [
     {"mac": "AA:BB:CC:00:00:01", "name": "Node North", "x": 20, "y": 20},

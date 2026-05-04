@@ -1,4 +1,4 @@
-import models
+from core import database
 import math
 import sqlite3
 
@@ -51,7 +51,7 @@ def trilaterate(nodes):
 
 def calculate_all_positions():
     """Returns final (x, y, confidence) output for the dashboard."""
-    conn = models.get_db()
+    conn = database.get_db()
     
     # Load dynamic globals
     settings = dict(conn.execute('SELECT key, value FROM system_config').fetchall())
