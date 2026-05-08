@@ -38,11 +38,11 @@ def init_db():
 
         # Migration for existing DB
         try: cursor.execute("ALTER TABLE nodes ADD COLUMN category TEXT DEFAULT 'Head Office'")
-        except: pass
+        except sqlite3.OperationalError: pass
         try: cursor.execute("ALTER TABLE nodes ADD COLUMN type TEXT DEFAULT ''")
-        except: pass
+        except sqlite3.OperationalError: pass
         try: cursor.execute("ALTER TABLE tags ADD COLUMN type TEXT DEFAULT ''")
-        except: pass
+        except sqlite3.OperationalError: pass
 
         
         cursor.execute('''

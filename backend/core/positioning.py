@@ -7,7 +7,7 @@ def rssi_to_distance(rssi, measured_power, env_factor):
     try:
         exponent = (float(measured_power) - float(rssi)) / (10.0 * float(env_factor))
         return 10.0 ** exponent
-    except:
+    except (ValueError, TypeError, ZeroDivisionError, OverflowError):
         return 10.0
 
 def trilaterate(nodes):
